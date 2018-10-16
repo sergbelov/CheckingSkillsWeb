@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context path="" antiResourceLocking="true">
+
+<!--
+    <Resource name="jdbc/ConnectName"
+              auth="Container"
+              type="javax.sql.DataSource" 
+              driverClassName="oracle.jdbc.driver.OracleDriver" 
+              username="username"
+              password="userpass" 
+              url="jdbc:oracle:thin:@//server_name:1525/base_name" 
+              testOnBorrow="true"
+              validationQuery="select 1 from dual"
+              defaultAutoCommit="true"
+    />
+-->
+
+    <!--<Resource name="jdbc/ConnectNameSQL"
+              auth="Container"
+              type="javax.sql.DataSource"
+              driverClassName="com.microsoft.sqlserver.jdbc.SQLServerDriver"
+              username="username"
+              password="userpass"
+              url="jdbc:sqlserver://1.1.1.94;databaseName=base_name"
+              testOnBorrow="true"
+              validationQuery="select 1"
+              defaultAutoCommit="true"
+    />
+-->
+</Context>

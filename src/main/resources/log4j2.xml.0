@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Properties>
+        <Property name="basepath">${sys:catalina.base}/logs/CheckingSkillsWeb</Property>
+        <Property name="rootFileName">CheckingSkillsWeb</Property>
+        <Property name="logFileName">CheckingSkillsWeb</Property>
+    </Properties>
+    <Appenders>
+        <RollingFile name="RootFile" fileName="${basepath}/${rootFileName}.log"
+                     filePattern="${basepath}/${rootFileName}-stub.%d-%i.log">
+            <PatternLayout>
+                <Pattern>%d %-5p [%t] %F:%L - %m%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <OnStartupTriggeringPolicy />
+                <TimeBasedTriggeringPolicy />
+                <SizeBasedTriggeringPolicy size="10 MB" />
+            </Policies>
+            <DefaultRolloverStrategy>
+                <Delete basePath="${basepath}">
+                    <IfFileName glob="${rootFileName}.*" />
+                    <IfLastModified age="30d" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+        <RollingFile name="LogFile" fileName="${basepath}/${logFileName}.log"
+                     filePattern="${basepath}/${logFileName}.%d-%i.log">
+            <PatternLayout>
+                <Pattern>%d %-5p [%t] %F:%L - %m%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <OnStartupTriggeringPolicy />
+                <TimeBasedTriggeringPolicy />
+                <SizeBasedTriggeringPolicy size="10 MB" />
+            </Policies>
+            <DefaultRolloverStrategy>
+                <Delete basePath="${basepath}">
+                    <IfFileName glob="${logFileName}.*" />
+                    <IfLastModified age="30d" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <Logger name="ru" level="trace" additivity="false">
+            <AppenderRef ref="LogFile"/>
+        </Logger>
+        <Root level="info">
+            <AppenderRef ref="RootFile"/>
+        </Root>
+    </Loggers>
+</Configuration>
