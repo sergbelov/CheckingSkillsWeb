@@ -5,8 +5,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.sql.*;
 
 /**
@@ -16,113 +14,184 @@ public class DBService {
 
     private static final Logger LOG = LogManager.getLogger();
     private Connection connection = null;
+    private String dbDriver = null;
+    public enum TypeDB {hsqldb, oracle, sqlserver};
 
-    private boolean loadDriver(String driverName) {
-        try {
-            DriverManager.registerDriver((Driver) Class.forName(driverName).newInstance());
-        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | SQLException e) {
-            LOG.error("Ошибка при работе с драйвером: {} ", driverName, e);
-            return false;
-        }
-        LOG.debug("SQL Driver: {}", driverName);
-        return true;
+    public void setLoggerLevel(Level loggerLevel){
+        Configurator.setLevel(LOG.getName(), loggerLevel);
     }
 
     public boolean isConnection() {
         return connection == null ? false : true;
     }
 
-    public Connection connection(){
+    private boolean loadDriver() {
+        LOG.debug("SQL Driver: {}", dbDriver);
+        try {
+            DriverManager.registerDriver((Driver) Class.forName(dbDriver).newInstance());
+        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | SQLException e) {
+            LOG.error("Ошибка при работе с драйвером: {}", dbDriver, e);
+            return false;
+        }
+        return true;
+    }
+
+    public Connection connection() {
         return connection;
     }
 
-    public boolean getConnectionHSQL(
-            String hSqlPath,
-            String hSqlDb,
-            String login,
-            String password,
-            Level loggerLevel) {
+    public boolean connect(
+            TypeDB typeDB,
+            String dbHost,
+            String dbBase,
+            String dbUserName,
+            String dbPassword) {
 
-        Configurator.setLevel(LOG.getName(), loggerLevel);
-        String driverNameHSQL = "org.hsqldb.jdbcDriver";
-        boolean res = false;
+        return connect(
+                typeDB,
+                dbHost,
+                1521,
+                dbBase,
+                dbUserName,
+                dbPassword);
+    }
 
-        if (!isConnection()) {
-            if (hSqlPath == null || hSqlPath.isEmpty()) {
-                hSqlPath = "hSQL";
-            }
-            if (hSqlDb == null || hSqlDb.isEmpty()) {
-                hSqlDb = "db";
-            }
-            if (login == null || login.isEmpty()) {
-                login = "admin";
-            }
-            if (password == null || password.isEmpty()) {
-                password = "admin";
-            }
+    public boolean connect(
+        TypeDB typeDB,
+        String dbHost,
+        int    dbPort,
+        String dbBase,
+        String dbUserName,
+        String dbPassword) {
 
-            if (loadDriver(driverNameHSQL)) {
-                StringBuilder url = new StringBuilder();
-                url.append("jdbc:hsqldb:file:")
-                    .append(hSqlPath)
-                    .append(hSqlDb);
-                try {
-                    connection = DriverManager.getConnection(url.toString(), login, password);
-//                connection.setAutoCommit(false); // для обработки транзакций
-//                connection.commit();
-//                connection.rollback();
-                    LOG.debug("Подключение к базе данных: DriverManager.getConnectionHSQL({}, {}, {})",
-                            url.toString(),
-                            login,
-                            password);
+        switch (typeDB){
+            case hsqldb:
+                this.dbDriver = "org.hsqldb.jdbcDriver";
+                break;
+            case oracle:
+                this.dbDriver = "oracle.jdbc.driver.OracleDriver";
+                break;
+            case sqlserver:
+                this.dbDriver = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+                break;
+            default:
+                return false;
+        }
 
-                    if (createTableUsers()) { res = true; }
+        return connect(
+                this.dbDriver,
+                dbHost,
+                dbPort,
+                dbBase,
+                dbUserName,
+                dbPassword);
+    }
 
-                } catch (SQLException e) {
-                    LOG.error("Ошибка при подключении к базе данных: DriverManager.getConnectionHSQL({}, {}, {})",
-                            url.toString(),
-                            login,
-                            password,
-                            e);
+    public boolean connect(
+            String dbDriver,
+            String dbHost,
+            String dbBase,
+            String dbUserName,
+            String dbPassword) {
+
+        return connect(
+                dbDriver,
+                dbHost,
+                1521,
+                dbBase,
+                dbUserName,
+                dbPassword);
+    }
+
+    public boolean connect(
+            String dbDriver,
+            String dbHost,
+            int    dbPort,
+            String dbBase,
+            String dbUserName,
+            String dbPassword) {
+
+        StringBuilder dbURL = new StringBuilder();
+
+        if (dbDriver.contains("org.hsqldb.jdbcDriver")){
+            dbURL.append("jdbc:hsqldb:file:")
+                    .append(dbHost)
+                    .append("/")
+                    .append(dbBase);
+
+        } else if (dbDriver.contains("oracle.jdbc.driver.OracleDriver")){
+            dbURL.append("jdbc:oracle:thin:@//")
+                    .append(dbHost)
+                    .append(":")
+                    .append(dbPort)
+                    .append("/")
+                    .append(dbBase);
+
+        } else if (dbDriver.contains("com.microsoft.sqlserver.jdbc.SQLServerDriver")){
+            dbURL.append("jdbc:sqlserver://")
+                    .append(dbHost)
+                    .append(";")
+                    .append("databaseName=")
+                    .append(dbBase);
+        }
+
+        return connect(
+                dbDriver,
+                dbURL.toString(),
+                dbUserName,
+                dbPassword);
+    }
+
+    public boolean connect(
+            String dbDriver,
+            String dbURL,
+            String dbUserName,
+            String dbPassword) {
+
+        this.dbDriver = dbDriver;
+        if (!loadDriver()){ return false; }
+
+        try {
+            connection = DriverManager.getConnection(dbURL, dbUserName, dbPassword);
+        } catch (SQLException e) {
+            LOG.error("Ошибка при подключении к базе данных {}", dbURL, e);
+            return false;
+        }
+        return true;
+    }
+
+
+    public boolean disconnect() {
+        LOG.debug("SQL disconnect");
+        if (isConnection()) {
+            try {
+                if (dbDriver.contains("org.hsqldb.jdbcDriver")) {
+                    execute("SHUTDOWN");
+                    connection = null;
                 }
+                if (connection != null) {
+                    connection.commit();
+                    connection.close();
+                    connection = null;
+                }
+            } catch (SQLException e) {
+                LOG.error("SQL disconnect", e);
+                return false;
             }
         }
-        return res;
-    }
-
-    public boolean closeConnectionHSQL() {
-        boolean res = false;
-//            try {
-//                connection.rollback();
-//                connection.setAutoCommit(true);
-//            } catch (SQLException e) {
-//                e.printStackTrace();
-//            }
-        if ((res = execUpdate("SHUTDOWN"))){
-            connection = null;
-        }
-        return res;
+        return true;
     }
 
 
-    private boolean createTableUsers() {
-        return execUpdate("CREATE TABLE IF NOT EXISTS users (" +
-                "ID IDENTITY, " +
-                "USERNAME VARCHAR(25), " +
-                "FULLUSERNAME VARCHAR(100), " +
-                "PASSWORD VARCHAR(50))");
-    }
-
-    private boolean execUpdate(String sql) {
+    public boolean execute(String sql) {
         boolean res = false;
         if (isConnection()) {
             try {
+                LOG.trace("{}", sql);
                 Statement statement = connection.createStatement();
                 statement.execute(sql);
                 statement.close();
-                LOG.debug("{}", sql);
                 res = true;
-
             } catch (SQLException e) {
                 LOG.error("{}", sql, e);
             }
@@ -132,11 +201,21 @@ public class DBService {
         return res;
     }
 
-    // StackTrace to String
-    private String stackTraceToString(Exception e) {
-        StringWriter error = new StringWriter();
-        e.printStackTrace(new PrintWriter(error));
-        return error.toString();
+    public ResultSet executeQuery(String sql) {
+        ResultSet resultSet = null;
+        if (isConnection()) {
+            try {
+                LOG.trace("{}", sql);
+                Statement statement = connection.createStatement();
+                resultSet = statement.executeQuery(sql);
+                statement.close();
+            } catch (SQLException e) {
+                LOG.error("{}", sql, e);
+            }
+        } else {
+            LOG.error("Отсутствует подключение к базе данных");
+        }
+        return resultSet;
     }
 
 }

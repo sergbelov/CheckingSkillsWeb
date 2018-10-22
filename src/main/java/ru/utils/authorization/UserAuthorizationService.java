@@ -27,26 +27,41 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
         return errorMessage.toString();
     }
 
-    public String getFullUserName() { return fullUserName;}
+    public String getFullUserName() { return fullUserName; }
 
-    public boolean getConnectionHSQL(
+    public boolean connectToHSQL(
             String hSqlPath,
             String hSqlDb,
             String login,
             String password,
             Level  loggerLevel) {
 
+        boolean r = false;
+
         Configurator.setLevel(LOG.getName(), loggerLevel);
 
-        return dbService.getConnectionHSQL(
+        dbService.setLoggerLevel(loggerLevel);
+        if (!dbService.connect(
+                DBService.TypeDB.hsqldb,
                 hSqlPath,
                 hSqlDb,
                 login,
-                password,
-                loggerLevel);
+                password)) {
+            return false;
+        }
+
+        if (dbService.execute(
+                "CREATE TABLE IF NOT EXISTS users (" +
+                "ID IDENTITY, " +
+                "USERNAME VARCHAR(25), " +
+                "FULLUSERNAME VARCHAR(100), " +
+                "PASSWORD VARCHAR(50))")){
+            r = true;
+        }
+        return r;
     }
 
-    public void closeConnectionHSQL() { dbService.closeConnectionHSQL(); }
+    public void closeConnectionHSQL() { dbService.disconnect(); }
 
     public String encryptMD5(String data) {
         MessageDigest md = null;

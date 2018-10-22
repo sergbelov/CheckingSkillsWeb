@@ -151,7 +151,7 @@ public class CheckingSkillsWeb {
 
         propertiesService.readProperties(FILE_PROPERTIES, propertiesService.getLevel("LOGGER_LEVEL"));
 
-        userAuthorizationService.getConnectionHSQL(
+        userAuthorizationService.connectToHSQL(
                 propertiesService.getString("HSQL_PATH"),
                 propertiesService.getString("HSQL_DB"),
                 propertiesService.getString("HSQL_LOGIN"),
