@@ -6,6 +6,7 @@ package ru.utils.authorization;
 public interface UserAuthorizationServiceI {
     boolean isUserCorrect(String userName, String fullUserName, String password, String password2);
     boolean isUserCorrect(String userName, String password);
+    boolean isSessionCorrect(String session);
     boolean userAdd(String userName, String fullUserName, String password, String password2);
     boolean userUpdate(String userName, String password);
 }

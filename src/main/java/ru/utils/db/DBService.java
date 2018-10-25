@@ -15,7 +15,9 @@ public class DBService {
     private static final Logger LOG = LogManager.getLogger();
     private Connection connection = null;
     private String dbDriver = null;
+    private TypeDB typeDB = null;
     public enum TypeDB {hsqldb, oracle, sqlserver};
+
 
     public void setLoggerLevel(Level loggerLevel){
         Configurator.setLevel(LOG.getName(), loggerLevel);
@@ -25,8 +27,21 @@ public class DBService {
         return connection == null ? false : true;
     }
 
+    public TypeDB getTypeDB() {
+        return typeDB;
+    }
+
     private boolean loadDriver() {
-        LOG.debug("SQL Driver: {}", dbDriver);
+        LOG.trace("SQL Driver: {}", dbDriver);
+
+        if (dbDriver.equalsIgnoreCase("org.hsqldb.jdbcDriver")){
+            this.typeDB = TypeDB.hsqldb;
+        } else if (dbDriver.equalsIgnoreCase("oracle.jdbc.driver.OracleDriver")){
+            this.typeDB = TypeDB.oracle;
+        } else if (dbDriver.equalsIgnoreCase("com.microsoft.sqlserver.jdbc.SQLServerDriver")){
+            this.typeDB = TypeDB.sqlserver;
+        }
+
         try {
             DriverManager.registerDriver((Driver) Class.forName(dbDriver).newInstance());
         } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | SQLException e) {
@@ -63,6 +78,8 @@ public class DBService {
         String dbBase,
         String dbUserName,
         String dbPassword) {
+
+        this.typeDB = typeDB;
 
         switch (typeDB){
             case hsqldb:
@@ -113,13 +130,13 @@ public class DBService {
 
         StringBuilder dbURL = new StringBuilder();
 
-        if (dbDriver.contains("org.hsqldb.jdbcDriver")){
+        if (dbDriver.equalsIgnoreCase("org.hsqldb.jdbcDriver")){
             dbURL.append("jdbc:hsqldb:file:")
                     .append(dbHost)
                     .append("/")
                     .append(dbBase);
 
-        } else if (dbDriver.contains("oracle.jdbc.driver.OracleDriver")){
+        } else if (dbDriver.equalsIgnoreCase("oracle.jdbc.driver.OracleDriver")){
             dbURL.append("jdbc:oracle:thin:@//")
                     .append(dbHost)
                     .append(":")
@@ -127,12 +144,15 @@ public class DBService {
                     .append("/")
                     .append(dbBase);
 
-        } else if (dbDriver.contains("com.microsoft.sqlserver.jdbc.SQLServerDriver")){
+        } else if (dbDriver.equalsIgnoreCase("com.microsoft.sqlserver.jdbc.SQLServerDriver")){
             dbURL.append("jdbc:sqlserver://")
                     .append(dbHost)
                     .append(";")
                     .append("databaseName=")
                     .append(dbBase);
+        } else {
+            LOG.error("Неизвестный драйвер: {}", dbDriver);
+            return false;
         }
 
         return connect(
@@ -148,8 +168,11 @@ public class DBService {
             String dbUserName,
             String dbPassword) {
 
+        LOG.debug("SQL connect: {}", dbURL);
         this.dbDriver = dbDriver;
-        if (!loadDriver()){ return false; }
+        if (!loadDriver()){
+            return false;
+        }
 
         try {
             connection = DriverManager.getConnection(dbURL, dbUserName, dbPassword);
@@ -160,12 +183,11 @@ public class DBService {
         return true;
     }
 
-
     public boolean disconnect() {
         LOG.debug("SQL disconnect");
         if (isConnection()) {
             try {
-                if (dbDriver.contains("org.hsqldb.jdbcDriver")) {
+                if (getTypeDB().equals(TypeDB.hsqldb)) {
                     execute("SHUTDOWN");
                     connection = null;
                 }
@@ -182,6 +204,17 @@ public class DBService {
         return true;
     }
 
+    public void printConnectInfo() throws SQLException {
+        LOG.info("SQL connect info" +
+                "\n\tDB name:    {}" +
+                "\n\tDB version: {}" +
+                "\n\tDriver:     {}" +
+                "\n\tAutocommit: {}",
+            connection.getMetaData().getDatabaseProductName(),
+            connection.getMetaData().getDatabaseProductVersion(),
+            connection.getMetaData().getDriverName(),
+            connection.getAutoCommit());
+    }
 
     public boolean execute(String sql) {
         boolean res = false;

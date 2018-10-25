@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.ModelAndView;
 import ru.utils.authorization.UserAuthorizationService;
 import ru.questions.Questions;
+import ru.utils.db.DBService;
 import ru.utils.files.PropertiesService;
 
 @Controller
@@ -102,6 +103,7 @@ public class CheckingSkillsWeb {
 
         if (webUser.isDefinedUser()){
             LOG.info("Выход пользователя {} ({})", webUser.getUserName(), webUser.getFullUserName());
+            userAuthorizationService.endSession();
             webUser.clear();
         }
 //        return createModel("login", new WebParamsObject());
@@ -151,12 +153,15 @@ public class CheckingSkillsWeb {
 
         propertiesService.readProperties(FILE_PROPERTIES, propertiesService.getLevel("LOGGER_LEVEL"));
 
-        userAuthorizationService.connectToHSQL(
+        userAuthorizationService.setLoggerLevel(propertiesService.getLevel("LOGGER_LEVEL"));
+
+        userAuthorizationService.connect(
+                DBService.TypeDB.hsqldb,
                 propertiesService.getString("HSQL_PATH"),
+                0,
                 propertiesService.getString("HSQL_DB"),
                 propertiesService.getString("HSQL_LOGIN"),
-                propertiesService.getString("HSQL_PASSWORD"),
-                propertiesService.getLevel("LOGGER_LEVEL"));
+                propertiesService.getString("HSQL_PASSWORD"));
 
         if ( !(isOk = userAuthorizationService.isUserCorrect(
                 webUser.getUserName(),
@@ -166,7 +171,7 @@ public class CheckingSkillsWeb {
             errorMessage = userAuthorizationService.getErrorMessage();
         }
 
-        userAuthorizationService.closeConnectionHSQL();
+        userAuthorizationService.disconnect();
 
         if (isOk) {
             webUser.setFullUserName(userAuthorizationService.getFullUserName());
@@ -190,7 +195,9 @@ public class CheckingSkillsWeb {
             }
 
         } else {
-            if (propertiesService.getBoolean("USER_REGISTRATION") && errorMessage.contains("не зарегистрирован")) {
+            if (propertiesService.getBoolean("USER_REGISTRATION") &&
+                userAuthorizationService.getError().equals(UserAuthorizationService.ErrorList.Login)) {
+
                 webUser.setFullUserName("");
                 mav = createModel("registration", webParams);
             } else {
