@@ -27,20 +27,41 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     private String dbBase;
     private String dbUserName;
     private String dbPassword;
-    private StringBuilder errorMessage = new StringBuilder();
     private String fullUserName;
     private String session;
     private long sessionDuration = 900000;
-    private ErrorList error = ErrorList.NoError;
-    public enum ErrorList{NoError, Empty, Login, Password, Double, Connect, Exec}
+    private Error error = Error.NO_ERROR;
+    private StringBuilder errorMessage = new StringBuilder();
+    private boolean doneCreateTable = false;
+    public enum Error {NO_ERROR, EMPTY, LOGIN, PASSWORD, DOUBLE, CONNECT, EXEC}
 
 
-    public ErrorList getError() {
+    public Error getError() {
         return error;
+    }
+    public String getErrorMessage() {
+        return errorMessage.toString();
+    }
+
+    public DBService dbService() {
+        return dbService;
+    }
+
+    public String getFullUserName() {
+        return fullUserName;
+    }
+
+    public String getSession() {
+        return session;
     }
 
     public void setSessionDuration(long sessionDuration){
         this.sessionDuration = sessionDuration;
+    }
+
+    public void setLoggerLevel(Level loggerLevel){
+        Configurator.setLevel(LOG.getName(), loggerLevel);
+        dbService.setLoggerLevel(loggerLevel);
     }
 
     public boolean connect(){
@@ -48,6 +69,22 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                 typeDB,
                 dbHost,
                 dbPort,
+                dbBase,
+                dbUserName,
+                dbPassword);
+    }
+
+    public boolean connect(
+            DBService.TypeDB typeDB,
+            String dbHost,
+            String dbBase,
+            String dbUserName,
+            String dbPassword) {
+
+        return connect(
+                typeDB,
+                dbHost,
+                1251,
                 dbBase,
                 dbUserName,
                 dbPassword);
@@ -77,10 +114,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                 dbUserName,
                 dbPassword)){
 
-            if (createTables()){
-                r = true;
-            }
-
+            if (doneCreateTable || createTables()){ r = true; }
         }
         return r;
     }
@@ -105,45 +139,76 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
         }
     }
 
-    public void setLoggerLevel(Level loggerLevel){
-        Configurator.setLevel(LOG.getName(), loggerLevel);
-        dbService.setLoggerLevel(loggerLevel);
-    }
-
-    public String getErrorMessage() {
-        return errorMessage.toString();
-    }
-
-    public String getFullUserName() {
-        return fullUserName;
-    }
-
-    public DBService dbService() {
-        return dbService;
-    }
-
-    public String getSession() {
-        return session;
-    }
-
     private boolean createTables(){
         boolean r = false;
-//        dbService.execute("drop table SESSIONS");
 
-        if (dbService.execute(
-                "CREATE TABLE IF NOT EXISTS USERS (" +
-                        "ID IDENTITY, " +
-                        "USERNAME VARCHAR(25), " +
-                        "FULLUSERNAME VARCHAR(100), " +
-                        "PASSWORD VARCHAR(50))")
-                &&
-            dbService.execute(
-                "CREATE TABLE IF NOT EXISTS SESSIONS (" +
-                        "USERNAME VARCHAR(25), " +
-                        "SESSION_ID VARCHAR(50), " +
-                        "TIME_END NUMERIC(20,0))")){
-            r = true;
+        switch (typeDB) {
+            case HSQLDB:
+                if (dbService.execute(
+                        "CREATE TABLE IF NOT EXISTS USERS (" +
+                                "ID IDENTITY, " +
+                                "USERNAME VARCHAR(25), " +
+                                "FULLUSERNAME VARCHAR(100), " +
+                                "PASSWORD VARCHAR(50))")
+                    &&
+                    dbService.execute(
+                        "CREATE TABLE IF NOT EXISTS SESSIONS (" +
+                                "USERNAME VARCHAR(25), " +
+                                "SESSION_ID VARCHAR(50), " +
+                                "TIME_END NUMERIC(20,0))")) {
+                    r = true;
+                }
+                break;
+
+            case ORACLE:
+                if (dbService.execute(
+                        "declare\n" +
+                            "cnt int;\n" +
+                            "begin\n" +
+                            "select count(*) into cnt from all_tables where table_name='USERS';\n" +
+                            "if (cnt = 0) then\n" +
+                            "execute immediate ('CREATE TABLE \"USERS\" (\"USERNAME\" VARCHAR(25), \"FULLUSERNAME\" VARCHAR(100), \"PASSWORD\" VARCHAR(50))');\n" +
+                            "end if;\n" +
+                            "commit;\n" +
+                            "end;")
+                    &&
+                    dbService.execute(
+                        "declare\n" +
+                            "cnt int;\n" +
+                            "begin\n" +
+                            "select count(*) into cnt from all_tables where table_name='SESSIONS';\n" +
+                            "if (cnt = 0) then\n" +
+                            "execute immediate ('CREATE TABLE \"SESSIONS\" (\"USERNAME\" VARCHAR(25), \"SESSION_ID\" VARCHAR(50), \"TIME_END\" NUMERIC(20,0))');\n" +
+                            "end if;\n" +
+                            "commit;\n" +
+                            "end;")) {
+                    r = true;
+                }
+                break;
+
+            case SQLSERVER:
+                if (dbService.execute(
+                    "if not exists(select 1 from sysobjects where id = object_id('dbo.USERS') and xtype = 'U')\n" +
+                        "begin\n" +
+                        "CREATE TABLE [dbo].[USERS](\n" +
+                        "[USERNAME] [varchar] (25),\n" +
+                        "[FULLUSERNAME] [varchar](100) NULL,\n" +
+                        "[PASSWORD] [varchar](50)) ON [PRIMARY]\n" +
+                        "end")
+                    &&
+                    dbService.execute(
+                    "if not exists(select 1 from sysobjects where id = object_id('dbo.SESSIONS') and xtype = 'U')\n" +
+                        "begin\n" +
+                        "CREATE TABLE [dbo].[SESSIONS](\n" +
+                        "[USERNAME] [varchar] (25),\n" +
+                        "[SESSION_ID] [varchar](50) NULL,\n" +
+                        "[TIME_END] [numeric](20,0)) ON [PRIMARY]\n" +
+                        "end") ) {
+                    r = true;
+                }
+                break;
         }
+        if (r) {doneCreateTable = true;}
         return r;
     }
 
@@ -179,7 +244,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     public boolean isUserCorrect(String userName, String password) {
         boolean res = false;
         fullUserName = "";
-        error = ErrorList.NoError;
+        error = Error.NO_ERROR;
         errorMessage.setLength(0);
         if (dbService.connection() != null) {
             if (userName != null && !userName.isEmpty()) {
@@ -219,7 +284,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
                             } else {
                                 LOG.warn("Авторизация пользователя: {} ({}) - неверный пароль", userName, fullUserName);
-                                error = ErrorList.Password;
+                                error = Error.PASSWORD;
                                 errorMessage.append("Неверный пароль для пользователя ")
                                         .append(userName)
                                         .append(" (")
@@ -228,7 +293,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                             }
                         } else {
                             LOG.warn("Авторизация пользователя: {} - пользователь не зарегистрирован", userName);
-                            error = ErrorList.Login;
+                            error = Error.LOGIN;
                             errorMessage.append("Пользователь ")
                                     .append(userName)
                                     .append(" не зарегистрирован");
@@ -238,26 +303,26 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
                     } catch (SQLException e) {
                         LOG.error(e);
-                        error = ErrorList.Exec;
+                        error = Error.EXEC;
                         errorMessage.append(e);
                     }
                 } else {
-                    error = ErrorList.Empty;
+                    error = Error.EMPTY;
                     errorMessage.append("Необходимо указать пароль");
                 }
             } else {
-                error = ErrorList.Empty;
+                error = Error.EMPTY;
                 errorMessage.append("Необходимо указать пользователя");
             }
         } else {
-            error = ErrorList.Connect;
+            error = Error.CONNECT;
             errorMessage.append("Отсутствует подключение к базе данных");
         }
         return res;
     }
 
     @Override
-    public boolean isSessionCorrect(String session) {
+    public boolean isSessionCorrect() {
         boolean r = false;
         try {
             if (connect()){
@@ -278,7 +343,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                 disconnect();
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOG.error(e);
         }
         return r;
     }
@@ -287,7 +352,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     public boolean userAdd(String userName, String fullUserName, String password, String password2) {
         boolean res = false;
         this.fullUserName = "";
-        error = ErrorList.NoError;
+        error = Error.NO_ERROR;
         errorMessage.setLength(0);
         if (dbService.connection() != null) {
             if (!password.isEmpty() & password.equals(password2)) {
@@ -299,7 +364,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                     if (resultSet.next()) {
                         fullUserName = resultSet.getString(1);
                         LOG.warn("Регистрация пользователя: {} ({}) - пользователь уже зарегистрирован", userName, fullUserName);
-                        error = ErrorList.Double;
+                        error = Error.DOUBLE;
                         errorMessage.append("Пользователь ")
                                 .append(userName)
                                 .append(" (")
@@ -324,17 +389,17 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
                 } catch (SQLException e) {
                     LOG.error(e);
-                    error = ErrorList.Exec;
+                    error = Error.EXEC;
                     errorMessage.append(e);
                 }
             } else {
-                error = ErrorList.Empty;
+                error = Error.EMPTY;
                 errorMessage.append("Ошибка регистрации пользователя ").append(userName);
                 if (password.isEmpty()) { errorMessage.append(" - пароль не может быть пустым"); }
                 else { errorMessage.append(" - пароль и подтверждение не совпадают"); }
             }
         } else {
-            error = ErrorList.Connect;
+            error = Error.CONNECT;
             errorMessage.append("Отсутствует подключение к базе данных");
         }
         return res;

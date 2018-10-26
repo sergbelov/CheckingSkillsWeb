@@ -89,6 +89,8 @@ public class CheckingSkillsWeb {
     private UserAuthorizationService userAuthorizationService = new UserAuthorizationService();
 
     private boolean isOk;
+    private String session;
+
 
 //    @RequestMapping(value = {"/", "/login", "/logout", "/registration", "/params", "/desktop", "/result"}, method = RequestMethod.GET)
     @RequestMapping(value = {"/", "/login", "/logout", "/registration", "/params", "/desktop", "/result"})
@@ -154,9 +156,10 @@ public class CheckingSkillsWeb {
         propertiesService.readProperties(FILE_PROPERTIES, propertiesService.getLevel("LOGGER_LEVEL"));
 
         userAuthorizationService.setLoggerLevel(propertiesService.getLevel("LOGGER_LEVEL"));
+        userAuthorizationService.setSessionDuration(60000);
 
         userAuthorizationService.connect(
-                DBService.TypeDB.hsqldb,
+                DBService.TypeDB.HSQLDB,
                 propertiesService.getString("HSQL_PATH"),
                 0,
                 propertiesService.getString("HSQL_DB"),
@@ -196,7 +199,7 @@ public class CheckingSkillsWeb {
 
         } else {
             if (propertiesService.getBoolean("USER_REGISTRATION") &&
-                userAuthorizationService.getError().equals(UserAuthorizationService.ErrorList.Login)) {
+                userAuthorizationService.getError().equals(UserAuthorizationService.Error.LOGIN)) {
 
                 webUser.setFullUserName("");
                 mav = createModel("registration", webParams);
@@ -222,16 +225,22 @@ public class CheckingSkillsWeb {
         response.setHeader("pragma", "no-cache");
 */
 
-        ModelAndView mav;
+        ModelAndView mav = null;
         String errorMessage = "";
 
-        if (webParams.getTheme() == null || webParams.getTheme().isEmpty()) {
+/*
+        if (!userAuthorizationService.isSessionCorrect()){
+            errorMessage = "Сессия просрочена";
+            mav = createModel("login", webParams, Optional.of(errorMessage));
+        }
+*/
+
+        if (errorMessage.isEmpty() && (webParams.getTheme() == null || webParams.getTheme().isEmpty())) {
             errorMessage = "Выберите тему для тестирования";
+            mav = createModel("params", webParams, Optional.of(errorMessage));
         }
 
-        if (!errorMessage.isEmpty()) {
-            mav = createModel("params", webParams, Optional.of(errorMessage));
-        } else {
+        if (errorMessage.isEmpty()) {
             questions.stop(false);
             questions.start(webParams.getTheme());
 // выводим отчет
@@ -258,6 +267,12 @@ public class CheckingSkillsWeb {
         ModelAndView mav;
         String errorMessage = "";
         StringBuilder res = new StringBuilder("\r\n");
+
+/*
+        if (!userAuthorizationService.isSessionCorrect()){
+            errorMessage = "Сессия просрочена";
+        }
+*/
 
         for (int q = 0; q < questions.getQuestionMax(); q++){
             if (request.getParameterValues("answer"+q) != null) {

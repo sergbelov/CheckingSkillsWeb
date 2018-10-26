@@ -14,12 +14,20 @@ public class DBService {
 
     private static final Logger LOG = LogManager.getLogger();
     private Connection connection = null;
+    private Statement statement = null;
     private String dbDriver = null;
     private TypeDB typeDB = null;
-    public enum TypeDB {hsqldb, oracle, sqlserver};
+
+    public enum TypeDB {
+        HSQLDB    { public String getDriver() {return "org.hsqldb.jdbcDriver";} },
+        ORACLE    { public String getDriver() {return "oracle.jdbc.driver.OracleDriver";} },
+        SQLSERVER { public String getDriver() {return "com.microsoft.sqlserver.jdbc.SQLServerDriver";} };
+
+        public abstract String getDriver();
+    }
 
 
-    public void setLoggerLevel(Level loggerLevel){
+    public void setLoggerLevel(Level loggerLevel) {
         Configurator.setLevel(LOG.getName(), loggerLevel);
     }
 
@@ -33,15 +41,6 @@ public class DBService {
 
     private boolean loadDriver() {
         LOG.trace("SQL Driver: {}", dbDriver);
-
-        if (dbDriver.equalsIgnoreCase("org.hsqldb.jdbcDriver")){
-            this.typeDB = TypeDB.hsqldb;
-        } else if (dbDriver.equalsIgnoreCase("oracle.jdbc.driver.OracleDriver")){
-            this.typeDB = TypeDB.oracle;
-        } else if (dbDriver.equalsIgnoreCase("com.microsoft.sqlserver.jdbc.SQLServerDriver")){
-            this.typeDB = TypeDB.sqlserver;
-        }
-
         try {
             DriverManager.registerDriver((Driver) Class.forName(dbDriver).newInstance());
         } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | SQLException e) {
@@ -72,28 +71,15 @@ public class DBService {
     }
 
     public boolean connect(
-        TypeDB typeDB,
-        String dbHost,
-        int    dbPort,
-        String dbBase,
-        String dbUserName,
-        String dbPassword) {
+            TypeDB typeDB,
+            String dbHost,
+            int dbPort,
+            String dbBase,
+            String dbUserName,
+            String dbPassword) {
 
         this.typeDB = typeDB;
-
-        switch (typeDB){
-            case hsqldb:
-                this.dbDriver = "org.hsqldb.jdbcDriver";
-                break;
-            case oracle:
-                this.dbDriver = "oracle.jdbc.driver.OracleDriver";
-                break;
-            case sqlserver:
-                this.dbDriver = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
-                break;
-            default:
-                return false;
-        }
+        this.dbDriver = typeDB.getDriver();
 
         return connect(
                 this.dbDriver,
@@ -123,20 +109,20 @@ public class DBService {
     public boolean connect(
             String dbDriver,
             String dbHost,
-            int    dbPort,
+            int dbPort,
             String dbBase,
             String dbUserName,
             String dbPassword) {
 
         StringBuilder dbURL = new StringBuilder();
 
-        if (dbDriver.equalsIgnoreCase("org.hsqldb.jdbcDriver")){
+        if (dbDriver.equalsIgnoreCase("org.hsqldb.jdbcDriver")) {
             dbURL.append("jdbc:hsqldb:file:")
                     .append(dbHost)
                     .append("/")
                     .append(dbBase);
 
-        } else if (dbDriver.equalsIgnoreCase("oracle.jdbc.driver.OracleDriver")){
+        } else if (dbDriver.equalsIgnoreCase("oracle.jdbc.driver.OracleDriver")) {
             dbURL.append("jdbc:oracle:thin:@//")
                     .append(dbHost)
                     .append(":")
@@ -144,7 +130,7 @@ public class DBService {
                     .append("/")
                     .append(dbBase);
 
-        } else if (dbDriver.equalsIgnoreCase("com.microsoft.sqlserver.jdbc.SQLServerDriver")){
+        } else if (dbDriver.equalsIgnoreCase("com.microsoft.sqlserver.jdbc.SQLServerDriver")) {
             dbURL.append("jdbc:sqlserver://")
                     .append(dbHost)
                     .append(";")
@@ -169,13 +155,22 @@ public class DBService {
             String dbPassword) {
 
         LOG.debug("SQL connect: {}", dbURL);
+
         this.dbDriver = dbDriver;
-        if (!loadDriver()){
-            return false;
+
+        for (TypeDB type: TypeDB.values()){
+            if (type.getDriver().equalsIgnoreCase(dbDriver)){
+                this.typeDB = type;
+            }
         }
+
+        if (!loadDriver()) {return false;}
 
         try {
             connection = DriverManager.getConnection(dbURL, dbUserName, dbPassword);
+//            statement = connection.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            statement = connection.createStatement();
+
         } catch (SQLException e) {
             LOG.error("Ошибка при подключении к базе данных {}", dbURL, e);
             return false;
@@ -187,9 +182,11 @@ public class DBService {
         LOG.debug("SQL disconnect");
         if (isConnection()) {
             try {
-                if (getTypeDB().equals(TypeDB.hsqldb)) {
+                if (getTypeDB().equals(TypeDB.HSQLDB)) {
                     execute("SHUTDOWN");
-                    connection = null;
+                }
+                if (statement != null) {
+                    statement.close();
                 }
                 if (connection != null) {
                     connection.commit();
@@ -206,24 +203,22 @@ public class DBService {
 
     public void printConnectInfo() throws SQLException {
         LOG.info("SQL connect info" +
-                "\n\tDB name:    {}" +
-                "\n\tDB version: {}" +
-                "\n\tDriver:     {}" +
-                "\n\tAutocommit: {}",
-            connection.getMetaData().getDatabaseProductName(),
-            connection.getMetaData().getDatabaseProductVersion(),
-            connection.getMetaData().getDriverName(),
-            connection.getAutoCommit());
+                        "\n\tDB name:    {}" +
+                        "\n\tDB version: {}" +
+                        "\n\tDriver:     {}" +
+                        "\n\tAutocommit: {}",
+                connection.getMetaData().getDatabaseProductName(),
+                connection.getMetaData().getDatabaseProductVersion(),
+                connection.getMetaData().getDriverName(),
+                connection.getAutoCommit());
     }
 
     public boolean execute(String sql) {
         boolean res = false;
         if (isConnection()) {
             try {
-                LOG.trace("{}", sql);
-                Statement statement = connection.createStatement();
+                LOG.trace("SQL request:\n{}", sql);
                 statement.execute(sql);
-                statement.close();
                 res = true;
             } catch (SQLException e) {
                 LOG.error("{}", sql, e);
@@ -238,10 +233,8 @@ public class DBService {
         ResultSet resultSet = null;
         if (isConnection()) {
             try {
-                LOG.trace("{}", sql);
-                Statement statement = connection.createStatement();
+                LOG.trace("SQL request:\n{}", sql);
                 resultSet = statement.executeQuery(sql);
-                statement.close();
             } catch (SQLException e) {
                 LOG.error("{}", sql, e);
             }
@@ -251,4 +244,22 @@ public class DBService {
         return resultSet;
     }
 
+}
+
+class DriverDB {
+    private String type;
+    private String driver;
+
+    public DriverDB(String type, String driver) {
+        this.type = type;
+        this.driver = driver;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public String getDriver() {
+        return driver;
+    }
 }
