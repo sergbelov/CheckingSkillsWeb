@@ -39,6 +39,10 @@ public class DBService {
         return typeDB;
     }
 
+    public Connection connection() {
+        return connection;
+    }
+
     private boolean loadDriver() {
         LOG.trace("SQL Driver: {}", dbDriver);
         try {
@@ -48,10 +52,6 @@ public class DBService {
             return false;
         }
         return true;
-    }
-
-    public Connection connection() {
-        return connection;
     }
 
     public boolean connect(
@@ -73,16 +73,13 @@ public class DBService {
     public boolean connect(
             TypeDB typeDB,
             String dbHost,
-            int dbPort,
+            int    dbPort,
             String dbBase,
             String dbUserName,
             String dbPassword) {
 
-        this.typeDB = typeDB;
-        this.dbDriver = typeDB.getDriver();
-
         return connect(
-                this.dbDriver,
+                typeDB.getDriver(),
                 dbHost,
                 dbPort,
                 dbBase,
@@ -156,6 +153,12 @@ public class DBService {
 
         LOG.debug("SQL connect: {}", dbURL);
 
+        if (isConnection()){
+            LOG.warn("SQL активно предыдущее подключение");
+            return true;
+        }
+
+        this.typeDB = null;
         this.dbDriver = dbDriver;
 
         for (TypeDB type: TypeDB.values()){
@@ -164,7 +167,7 @@ public class DBService {
             }
         }
 
-        if (!loadDriver()) {return false;}
+        if (this.typeDB == null || !loadDriver()) {return false;}
 
         try {
             connection = DriverManager.getConnection(dbURL, dbUserName, dbPassword);
