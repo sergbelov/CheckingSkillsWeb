@@ -249,20 +249,3 @@ public class DBService {
 
 }
 
-class DriverDB {
-    private String type;
-    private String driver;
-
-    public DriverDB(String type, String driver) {
-        this.type = type;
-        this.driver = driver;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public String getDriver() {
-        return driver;
-    }
-}
