@@ -20,11 +20,12 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
     private final Logger LOG = LogManager.getLogger();
 
-    private DBService dbService = new DBService();
-    private DBService.TypeDB typeDB;
+    private Level loggerLevel = null;
+    private DBService dbService = null;
+    private DBService.TypeDB typeDB = null;
     private String dbHost;
-    private int    dbPort;
     private String dbBase;
+    private int    dbPort;
     private String dbUserName;
     private String dbPassword;
     private String fullUserName;
@@ -61,60 +62,84 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
     public void setLoggerLevel(Level loggerLevel){
         Configurator.setLevel(LOG.getName(), loggerLevel);
-        dbService.setLoggerLevel(loggerLevel);
+        if (dbService != null) {
+            dbService.setLoggerLevel(loggerLevel);
+        }
     }
 
-    public boolean connect(){
-        return connect(
-                typeDB,
-                dbHost,
-                dbPort,
-                dbBase,
-                dbUserName,
-                dbPassword);
+
+    public static class Builder{
+        private Level loggerLevel = null;
+        private DBService.TypeDB typeDB = null;
+        private String dbHost;
+        private String dbBase;
+        private int    dbPort   = 1251;
+        private String dbUserName;
+        private String dbPassword;
+
+        public Builder loggerLevel(Level val){
+            loggerLevel = val;
+            return this;
+        }
+        public Builder dbType(DBService.TypeDB val){
+            typeDB = val;
+            return this;
+        }
+        public Builder dbHost(String val){
+            dbHost = val;
+            return this;
+        }
+        public Builder dbBase(String val){
+            dbBase = val;
+            return this;
+        }
+        public Builder dbPort(int val){
+            dbPort = val;
+            return this;
+        }
+        public Builder dbUserName(String val){
+            dbUserName = val;
+            return this;
+        }
+        public Builder dbPassword(String val){
+            dbPassword = val;
+            return this;
+        }
+        public UserAuthorizationService build(){
+            return new UserAuthorizationService(this);
+        }
     }
 
-    public boolean connect(
-            DBService.TypeDB typeDB,
-            String dbHost,
-            String dbBase,
-            String dbUserName,
-            String dbPassword) {
+    private UserAuthorizationService(Builder builder){
+        loggerLevel = builder.loggerLevel;
+        typeDB      = builder.typeDB;
+        dbHost      = builder.dbHost;
+        dbBase      = builder.dbBase;
+        dbPort      = builder.dbPort;
+        dbUserName  = builder.dbUserName;
+        dbPassword  = builder.dbPassword;
 
-        return connect(
-                typeDB,
-                dbHost,
-                1251,
-                dbBase,
-                dbUserName,
-                dbPassword);
+        if (loggerLevel != null) {setLoggerLevel(loggerLevel);}
     }
 
-    public boolean connect(
-            DBService.TypeDB typeDB,
-            String dbHost,
-            int    dbPort,
-            String dbBase,
-            String dbUserName,
-            String dbPassword) {
-
+    public boolean connect() {
         boolean r = false;
-        this.typeDB = typeDB;
-        this.dbHost = dbHost;
-        this.dbPort = dbPort;
-        this.dbBase = dbBase;
-        this.dbUserName = dbUserName;
-        this.dbPassword = dbPassword;
+        dbService = new DBService.Builder()
+                .dbType(typeDB)
+                .dbHost(dbHost)
+                .dbBase(dbBase)
+                .dbPort(dbPort)
+                .dbUserName(dbUserName)
+                .dbPassword(dbPassword)
+                .loggerLevel(loggerLevel)
+                .build();
 
-        if (dbService.connect(
-                typeDB,
-                dbHost,
-                dbPort,
-                dbBase,
-                dbUserName,
-                dbPassword)){
-
+        if (dbService.connect()) {
             if (doneCreateTable || createTables()){ r = true; }
+        }
+        if (!r) {
+            this.error = Error.CONNECT;
+            this.errorMessage.append("Ошибка при подключении к базе данных");
         }
         return r;
     }

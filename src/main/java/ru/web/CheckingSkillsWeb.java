@@ -86,7 +86,7 @@ public class CheckingSkillsWeb {
     private WebParamsObject webParams = new WebParamsObject();
     private PropertiesService propertiesService = new PropertiesService(propertyMap);
     private Questions questions = new Questions();
-    private UserAuthorizationService userAuthorizationService = new UserAuthorizationService();
+    private UserAuthorizationService userAuthorizationService;
 
     private boolean isOk;
     private String session;
@@ -155,16 +155,20 @@ public class CheckingSkillsWeb {
 
         propertiesService.readProperties(FILE_PROPERTIES, propertiesService.getLevel("LOGGER_LEVEL"));
 
-        userAuthorizationService.setLoggerLevel(propertiesService.getLevel("LOGGER_LEVEL"));
+        userAuthorizationService = new UserAuthorizationService.Builder()
+                .dbType(DBService.TypeDB.HSQLDB)
+                .dbHost(propertiesService.getString("HSQL_PATH"))
+                .dbBase(propertiesService.getString("HSQL_DB"))
+                .dbUserName(propertiesService.getString("HSQL_LOGIN"))
+                .dbPassword(propertiesService.getString("HSQL_PASSWORD"))
+                .loggerLevel(propertiesService.getLevel("LOGGER_LEVEL"))
+                .build();
+
         userAuthorizationService.setSessionDuration(60000);
 
-        userAuthorizationService.connect(
-                DBService.TypeDB.HSQLDB,
-                propertiesService.getString("HSQL_PATH"),
-                0,
-                propertiesService.getString("HSQL_DB"),
-                propertiesService.getString("HSQL_LOGIN"),
-                propertiesService.getString("HSQL_PASSWORD"));
+        if (!userAuthorizationService.connect()) {
+            errorMessage = userAuthorizationService.getErrorMessage();
+        }
 
         if ( !(isOk = userAuthorizationService.isUserCorrect(
                 webUser.getUserName(),
