@@ -20,12 +20,12 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
     private final Logger LOG = LogManager.getLogger();
 
-    private Level loggerLevel = null;
-    private DBService dbService = null;
-    private DBService.TypeDB typeDB = null;
+    private Level loggerLevel       = null;
+    private DBService dbService     = null;
+    private DBService.DBType dbType = null;
     private String dbHost;
     private String dbBase;
-    private int    dbPort;
+    private int    dbPort           = 1521;
     private String dbUserName;
     private String dbPassword;
     private String fullUserName;
@@ -44,9 +44,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
         return errorMessage.toString();
     }
 
-    public DBService dbService() {
-        return dbService;
-    }
+//    public DBService dbService() { return dbService; }
 
     public String getFullUserName() {
         return fullUserName;
@@ -70,10 +68,10 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
     public static class Builder{
         private Level loggerLevel = null;
-        private DBService.TypeDB typeDB = null;
+        private DBService.DBType dbType = null;
         private String dbHost;
         private String dbBase;
-        private int    dbPort   = 1251;
+        private int    dbPort   = 1521;
         private String dbUserName;
         private String dbPassword;
 
@@ -81,8 +79,8 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
             loggerLevel = val;
             return this;
         }
-        public Builder dbType(DBService.TypeDB val){
-            typeDB = val;
+        public Builder dbType(DBService.DBType val){
+            dbType = val;
             return this;
         }
         public Builder dbHost(String val){
@@ -112,7 +110,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
     private UserAuthorizationService(Builder builder){
         loggerLevel = builder.loggerLevel;
-        typeDB      = builder.typeDB;
+        dbType      = builder.dbType;
         dbHost      = builder.dbHost;
         dbBase      = builder.dbBase;
         dbPort      = builder.dbPort;
@@ -123,17 +121,22 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     }
 
     public boolean connect() {
+        if (dbService != null && dbService.isConnection()) {
+            LOG.debug("SQL активно предыдущее подключение, используем его:" + dbService.getConnectInfo());
+            return true;
+        }
         boolean r = false;
-        dbService = new DBService.Builder()
-                .dbType(typeDB)
-                .dbHost(dbHost)
-                .dbBase(dbBase)
-                .dbPort(dbPort)
-                .dbUserName(dbUserName)
-                .dbPassword(dbPassword)
-                .loggerLevel(loggerLevel)
-                .build();
-
+        if (dbService == null) {
+            dbService = new DBService.Builder()
+                    .dbType(dbType)
+                    .dbHost(dbHost)
+                    .dbBase(dbBase)
+                    .dbPort(dbPort)
+                    .dbUserName(dbUserName)
+                    .dbPassword(dbPassword)
+                    .loggerLevel(loggerLevel)
+                    .build();
+        }
         if (dbService.connect()) {
             if (doneCreateTable || createTables()){ r = true; }
         }
@@ -145,19 +148,24 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     }
 
     public void disconnect(){
-        dbService.disconnect();
+        if (dbService != null) {
+            dbService.disconnect();
+            dbService = null;
+        }
     }
 
     public void endSession(){
         LOG.info("End session: {}", session);
         PreparedStatement preparedStatement = null;
         try {
+            boolean c = false;
+            if (dbService != null && dbService.isConnection()) {c = true;}
             if (connect()) {
                 preparedStatement = dbService.connection().prepareStatement("DELETE FROM SESSIONS WHERE SESSION_ID = ?");
                 preparedStatement.setString(1, session);
                 preparedStatement.execute();
                 preparedStatement.close();
-                disconnect();
+                if (!c) {disconnect();}
             }
         } catch (SQLException e) {
             LOG.error("End session ", e);
@@ -165,9 +173,9 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     }
 
     private boolean createTables(){
+        LOG.debug("SQL Create tables");
         boolean r = false;
-
-        switch (typeDB) {
+        switch (dbType) {
             case HSQLDB:
                 if (dbService.execute(
                         "CREATE TABLE IF NOT EXISTS USERS (" +
@@ -282,10 +290,8 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                         if (resultSet.next()) {
                             fullUserName = resultSet.getString(2);
                             if (encryptMD5(password).equals(resultSet.getString(1))) {
-                                LOG.info("Авторизация пользователя: {} ({}) - успешно", userName, fullUserName);
-
                                 this.session = UUID.randomUUID().toString();
-                                LOG.debug("session: {}", session);
+                                LOG.info("Авторизация пользователя: {} ({}) - успешно {}", userName, fullUserName, session);
 
                                 // наличие старой сессии
                                 preparedStatement = dbService.connection().prepareStatement("SELECT SESSION_ID FROM SESSIONS WHERE USERNAME = ? and TIME_END < ?");
@@ -350,6 +356,8 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     public boolean isSessionCorrect() {
         boolean r = false;
         try {
+            boolean c = false;
+            if (dbService != null && dbService.isConnection()) {c = true;}
             if (connect()){
                 PreparedStatement preparedStatement = dbService.connection().prepareStatement("SELECT TIME_END FROM SESSIONS WHERE SESSION_ID = ?");
                 preparedStatement.setString(1, session);
@@ -365,7 +373,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                 }
                 resultSet.close();
                 preparedStatement.close();
-                disconnect();
+                if (!c) {disconnect();}
             }
         } catch (SQLException e) {
             LOG.error(e);

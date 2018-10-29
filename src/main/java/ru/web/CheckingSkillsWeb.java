@@ -8,6 +8,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import okhttp3.*;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.springframework.context.annotation.Scope;
@@ -32,17 +33,19 @@ public class CheckingSkillsWeb {
     private final String FILE_PROPERTIES = "../webapps/CheckingSkillsWeb/WEB-INF/classes/CheckingSkillsWeb.properties";
 
     private final Map<String, String> propertyMap = new LinkedHashMap<String, String>(){{
-        put("QUESTION_MAX",    "10");                               // максимальное количество задаваемых вопросов
-        put("QUESTION_FILE",   "C:/TEMP/questions/Questions.json"); // файл с вопросами
-        put("RESULT_PATH",     "C:/TEMP/questions/result/");        // путь для сохранения результатов тестирования
-        put("RESULT_FORMAT",   "JSON");                             // формат файла с результатами тестирования XML или JSON
-        put("SHOW_ANSWERS",    "TRUE");                             // отображать правильные варианты ответов
-        put("LOGGER_LEVEL",    "WARN");                             // уровень логирования
-        put("HSQL_PATH",       "C:/TEMP/questions/HSQL/");          // HSQL путь к базе
-        put("HSQL_DB",         "DB_CheckingSkills");                // HSQL имя базы
-        put("HSQL_LOGIN",      "admin");                            // HSQL логин
-        put("HSQL_PASSWORD",   "admin");                            // HSQL пароль
-        put("USER_REGISTRATION","true");                            // Самостоятельная регистрация пользователей
+        put("QUESTION_MAX",     "10");                                  // максимальное количество задаваемых вопросов
+        put("QUESTION_FILE",    "C:/TEMP/questions/Questions.json");    // файл с вопросами
+        put("RESULT_PATH",      "C:/TEMP/questions/result/");           // путь для сохранения результатов тестирования
+        put("RESULT_FORMAT",    "JSON");                                // формат файла с результатами тестирования XML или JSON
+        put("SHOW_ANSWERS",     "TRUE");                                // отображать правильные варианты ответов
+        put("LOGGER_LEVEL",     "WARN");                                // уровень логирования
+        put("DB_TYPE",          "HSQLDB");                              // тип SQL-подключения: HSQLDB, ORACLE, SQLSERVER
+        put("DB_HOST",          "C:/TEMP/questions/HSQL/");             // DB host
+        put("DB_BASE",          "DB_CheckingSkills");                   // DB base name
+        put("DB_PORT",          "1521");                                // DB port для Oracle
+        put("DB_USERNAME",      "admin");                               // DB пользователь
+        put("DB_PASSWORD",      "admin");                               // DB пароль
+        put("USER_REGISTRATION","true");                                // Разрешена самостоятельная регистрация пользователей
     }};
 
 
@@ -86,7 +89,7 @@ public class CheckingSkillsWeb {
     private WebParamsObject webParams = new WebParamsObject();
     private PropertiesService propertiesService = new PropertiesService(propertyMap);
     private Questions questions = new Questions();
-    private UserAuthorizationService userAuthorizationService;
+    private UserAuthorizationService userAuthorizationService = null;
 
     private boolean isOk;
     private String session;
@@ -155,14 +158,17 @@ public class CheckingSkillsWeb {
 
         propertiesService.readProperties(FILE_PROPERTIES, propertiesService.getLevel("LOGGER_LEVEL"));
 
-        userAuthorizationService = new UserAuthorizationService.Builder()
-                .dbType(DBService.TypeDB.HSQLDB)
-                .dbHost(propertiesService.getString("HSQL_PATH"))
-                .dbBase(propertiesService.getString("HSQL_DB"))
-                .dbUserName(propertiesService.getString("HSQL_LOGIN"))
-                .dbPassword(propertiesService.getString("HSQL_PASSWORD"))
-                .loggerLevel(propertiesService.getLevel("LOGGER_LEVEL"))
-                .build();
+        if (userAuthorizationService == null) {
+            userAuthorizationService = new UserAuthorizationService.Builder()
+                    .dbType(DBService.DBType.valueOf(propertiesService.getString("DB_TYPE")))
+                    .dbHost(propertiesService.getString("DB_HOST"))
+                    .dbBase(propertiesService.getString("DB_BASE"))
+                    .dbPort(propertiesService.getInt("DB_PORT"))
+                    .dbUserName(propertiesService.getString("DB_USERNAME"))
+                    .dbPassword(propertiesService.getString("DB_PASSWORD"))
+                    .loggerLevel(propertiesService.getLevel("LOGGER_LEVEL"))
+                    .build();
+        }
 
         userAuthorizationService.setSessionDuration(60000);
 
