@@ -12,23 +12,61 @@ public class DBService {
     private static final Logger LOG = LogManager.getLogger();
 
     public enum DBType {
-        HSQLDB    { public String getDriver() {return "org.hsqldb.jdbcDriver";} },
-        ORACLE    { public String getDriver() {return "oracle.jdbc.driver.OracleDriver";} },
-        SQLSERVER { public String getDriver() {return "com.microsoft.sqlserver.jdbc.SQLServerDriver";} };
+        HSQLDB    {
+            public String getDriver() {return "org.hsqldb.jdbcDriver";}
+
+            public String getURL(
+                    String dbHost,
+                    String dbBase,
+                    int dbPort){
+                return "jdbc:hsqldb:file:" +
+                        dbHost +
+                        "/" +
+                        dbBase;}
+        },
+
+        ORACLE    {
+            public String getDriver() {return "oracle.jdbc.driver.OracleDriver";}
+
+            public String getURL(
+                    String dbHost,
+                    String dbBase,
+                    int dbPort){
+                return "jdbc:oracle:thin:@//" +
+                        dbHost +
+                        ":" +
+                        dbPort +
+                        "/" +
+                        dbBase;}
+        },
+
+        SQLSERVER {
+            public String getDriver() {return "com.microsoft.sqlserver.jdbc.SQLServerDriver";}
+
+            public String getURL(
+                    String dbHost,
+                    String dbBase,
+                    int dbPort){
+                return "jdbc:sqlserver://"+
+                        dbHost +
+                        ";databaseName=" +
+                        dbBase;}
+        };
 
         public abstract String getDriver();
+        public abstract String getURL(String dbHost, String dbBase, int dbPort);
     }
 
-    private Level loggerLevel       = null;
     private Connection connection   = null;
     private Statement statement     = null;
 
-    private DBType dbType           = null;
-    private String dbDriver         = null;
+    private Level loggerLevel;
+    private DBType dbType;
+    private String dbDriver;
     private String dbHost;
     private String dbBase;
-    private int    dbPort           = 1521;
-    private String dbURL            = null;
+    private int    dbPort;
+    private String dbURL;
     private String dbUserName;
     private String dbPassword;
 
@@ -114,37 +152,7 @@ public class DBService {
         }
 
         if (dbURL == null || dbURL.isEmpty()){
-            StringBuilder dbURL = new StringBuilder();
-
-            switch (dbType){
-                case HSQLDB:
-                    dbURL.append("jdbc:hsqldb:file:")
-                            .append(dbHost)
-                            .append("/")
-                            .append(dbBase);
-                    break;
-
-                case ORACLE:
-                    dbURL.append("jdbc:oracle:thin:@//")
-                            .append(dbHost)
-                            .append(":")
-                            .append(dbPort)
-                            .append("/")
-                            .append(dbBase);
-                    break;
-
-                case SQLSERVER:
-                    dbURL.append("jdbc:sqlserver://")
-                            .append(dbHost)
-                            .append(";")
-                            .append("databaseName=")
-                            .append(dbBase);
-                    break;
-
-                default:
-                    LOG.error("SQL Driver неизвестен: {}", dbDriver);
-            }
-            this.dbURL = dbURL.toString();
+            dbURL = dbType.getURL(dbHost, dbBase, dbPort);
         }
     }
 
