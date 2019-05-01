@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -14,6 +15,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -37,6 +39,19 @@ public class PropertiesService {
         addKey = false; // список параметров задан
         this.propertyMap = propertyMap;
     }
+
+    public PropertiesService(String fileName) {
+        addKey = true; // список параметров из файла
+        propertyMap = new LinkedHashMap<String, String>();
+        readProperties(fileName);
+    }
+
+    public PropertiesService(String fileName, Map<String, String> propertyMap) {
+        addKey = false; // список параметров задан
+        this.propertyMap = propertyMap;
+        readProperties(fileName);
+    }
+
 
     public void readProperties(String fileName, Level level) {
         Configurator.setLevel(LOG.getName(), level);
@@ -135,9 +150,9 @@ public class PropertiesService {
     }
 
     public Date getDate(String propertyName, String dateFormat) {
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(dateFormat);
         Date date = null;
         try {
+            DateFormat simpleDateFormat = new SimpleDateFormat(dateFormat);
             date = simpleDateFormat.parse(propertyMap.get(propertyName));
         } catch (ParseException e) {
             LOG.error(e);
@@ -160,10 +175,10 @@ public class PropertiesService {
                 .toArray();
     }
 
-    public JSONObject getJson(String propertyName) {
+    public JSONObject getJSONObject(String propertyName) {
         JSONObject jsonObject = null;
         String value = propertyMap.get(propertyName);
-        if (value != null && !value.isEmpty()) {
+        if (value != null && value.startsWith("{")) {
             try {
                 jsonObject = new JSONObject(value);
             } catch (JSONException e) {
@@ -171,6 +186,19 @@ public class PropertiesService {
             }
         }
         return jsonObject;
+    }
+
+    public JSONArray getJSONArray(String propertyName) {
+        JSONArray jsonArray = null;
+        String value = propertyMap.get(propertyName);
+        if (value != null && value.startsWith("[")) {
+            try {
+                jsonArray = new JSONArray(value);
+            } catch (JSONException e) {
+                LOG.error(e);
+            }
+        }
+        return jsonArray;
     }
 
     public <T> List<T> getJsonList(String propertyName, TypeToken typeToken) {
