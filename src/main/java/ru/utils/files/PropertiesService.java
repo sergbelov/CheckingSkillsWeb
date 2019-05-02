@@ -11,10 +11,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -27,27 +24,28 @@ import static java.util.Map.Entry.comparingByKey;
  */
 public class PropertiesService {
     private static final Logger LOG = LogManager.getLogger();
+    private String fileName;
     private boolean addKey;
     private Map<String, String> propertyMap;
 
     public PropertiesService() {
-        addKey = true; // список параметров из файла
-        propertyMap = new LinkedHashMap<String, String>();
+        this.addKey = true; // список параметров из файла
+        this.propertyMap = new LinkedHashMap<String, String>();
     }
 
     public PropertiesService(Map<String, String> propertyMap) {
-        addKey = false; // список параметров задан
+        this.addKey = false; // список параметров задан
         this.propertyMap = propertyMap;
     }
 
     public PropertiesService(String fileName) {
-        addKey = true; // список параметров из файла
-        propertyMap = new LinkedHashMap<String, String>();
+        this.addKey = true; // список параметров из файла
+        this.propertyMap = new LinkedHashMap<String, String>();
         readProperties(fileName);
     }
 
     public PropertiesService(String fileName, Map<String, String> propertyMap) {
-        addKey = false; // список параметров задан
+        this.addKey = false; // список параметров задан
         this.propertyMap = propertyMap;
         readProperties(fileName);
     }
@@ -59,6 +57,7 @@ public class PropertiesService {
     }
 
     public void readProperties(String fileName) {
+        this.fileName = fileName;
         StringBuilder report = new StringBuilder();
         report
                 .append("Параметры из файла ")
@@ -74,11 +73,11 @@ public class PropertiesService {
                     .append(fileName)
                     .append(":");
 
-            try (InputStream is = new FileInputStream(file)) {
-                Properties pr = new Properties();
-                pr.load(is);
+            Properties properties = new Properties();
+            try (InputStream inputStream = new FileInputStream(file)) {
+                properties.load(inputStream);
 
-                for (Map.Entry<Object, Object> entry : pr.entrySet()) {
+                for (Map.Entry<Object, Object> entry : properties.entrySet()) {
                     reportTrace
                             .append("\r\n\t")
                             .append(entry.getKey().toString())
@@ -86,7 +85,9 @@ public class PropertiesService {
                             .append(entry.getValue().toString());
 
                     if (addKey || propertyMap.get(entry.getKey()) != null) {
-                        propertyMap.put(entry.getKey().toString(), entry.getValue().toString());
+                        propertyMap.put(
+                                entry.getKey().toString(),
+                                entry.getValue().toString());
                     }
                 }
                 LOG.trace(reportTrace);
@@ -98,7 +99,7 @@ public class PropertiesService {
                 LOG.error(e);
             }
         } else {
-            report.append("\r\n\tФайл не найден, параметры по умолчанию:");
+            report.append("\r\n\tФайл не найден, используем параметры по умолчанию:");
         }
 
         // параметры со значениями
@@ -119,6 +120,34 @@ public class PropertiesService {
         } else {
             LOG.warn(report);
         }
+    }
+
+
+    public boolean setProperty(String key, String value) {
+        boolean r = false;
+        Properties properties = new Properties();
+
+        try (InputStream inputStream = new FileInputStream(fileName)) {
+            properties.load(inputStream);
+            r = true;
+        } catch (IOException e) {
+            LOG.error(e);
+        }
+
+        if (r) {
+            try (OutputStream outputStream = new FileOutputStream(fileName)) {
+                properties.setProperty(key, value);
+                properties.store(outputStream, null);
+            } catch (IOException e) {
+                r = false;
+                LOG.error(e);
+            }
+        }
+        return r;
+    }
+
+    public String getFileName() {
+        return fileName;
     }
 
     public String getString(String propertyName) {
