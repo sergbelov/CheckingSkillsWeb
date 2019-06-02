@@ -45,7 +45,8 @@ public class PropertiesService {
     }
 
     public PropertiesService(String fileName, Map<String, String> propertyMap) {
-        this.addKey = false; // список параметров задан
+//        this.addKey = false; // список параметров задан
+        this.addKey = true;
         this.propertyMap = propertyMap;
         readProperties(fileName);
     }
