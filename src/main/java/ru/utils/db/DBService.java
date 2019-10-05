@@ -157,6 +157,10 @@ public class DBService {
     }
 
 
+    public DBType getDbType(){
+        return dbType;
+    }
+
     public void setLoggerLevel(Level loggerLevel) {
         Configurator.setLevel(LOG.getName(), loggerLevel);
     }

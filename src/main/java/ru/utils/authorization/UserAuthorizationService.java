@@ -75,12 +75,17 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     }
 
 
+    public void setDbService(DBService dbService){
+        this.dbService = dbService;
+    }
+
     public DBService getDbService(){
         return dbService;
     }
 
     public static class Builder{
         private Level loggerLevel = null;
+        private DBService dbService = null;
         private DBService.DBType dbType = null;
         private String dbHost;
         private String dbBase;
@@ -90,6 +95,10 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
         public Builder loggerLevel(Level val){
             loggerLevel = val;
+            return this;
+        }
+        public Builder dbService(DBService val){
+            dbService = val;
             return this;
         }
         public Builder dbType(DBService.DBType val){
@@ -123,12 +132,17 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
     private UserAuthorizationService(Builder builder){
         loggerLevel = builder.loggerLevel;
+        dbService   = builder.dbService;
         dbType      = builder.dbType;
         dbHost      = builder.dbHost;
         dbBase      = builder.dbBase;
         dbPort      = builder.dbPort;
         dbUserName  = builder.dbUserName;
         dbPassword  = builder.dbPassword;
+
+        if (dbService!=null){
+            this.dbType = dbService.getDbType();
+        }
 
         if (loggerLevel != null) {setLoggerLevel(loggerLevel);}
     }
@@ -193,7 +207,8 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     private boolean createTables(){
         LOG.debug("SQL Create tables");
         boolean r = false;
-        switch (dbType) {
+//        switch (dbType) {
+        switch (dbService.getDbType()) {
             case HSQLDB:
                 if (dbService.execute(
                         "CREATE TABLE IF NOT EXISTS USERS (" +
