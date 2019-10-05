@@ -192,8 +192,28 @@ public class DBService {
 
         try {
             connection = DriverManager.getConnection(dbURL, dbUserName, dbPassword);
-//            statement = connection.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
-            statement = connection.createStatement();
+/*
+ResultSet.TYPE-FORWARD_ONLY
+Указатель двигается только вперёд по множеству полученных результатов.
+
+ResultSet.TYPE_SCROLL_INTENSIVE
+Указатель может двигаться вперёд и назад и не чуствителен к изменениям в БД, которые сделаны другими пользователями после того, как ResultSet был создан.
+
+ResultSet.TYPE_SCROLL_SENSITIVE
+Указатель может двигаться вперёд и назад и чувствителен к изменениям в БД, которые сделаны другими пользователями после того, как ResultSet был создан.
+
+==============================================
+
+ResultSet.CONCUR_READ_ONLY
+Создаёт экземпляр ResultSet только для чтения. Устанавливается по умолчанию.
+
+ResultSet.CONCUR_UPDATABLE
+Создаёт экземпляр ResultSet, который может изменять данные.
+*/
+
+//            statement = connection.createStatement();
+            statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+
             LOG.trace("SQL connected: {}", getConnectInfo());
 
         } catch (SQLException e) {
@@ -277,6 +297,27 @@ public class DBService {
             LOG.error("Отсутствует подключение к базе данных");
         }
         return resultSet;
+    }
+
+    /** Количество записей в ResultSet
+     *
+     * @param resultSet
+     * @return
+     */
+    public int getCountResultSet(ResultSet resultSet){
+        int r = 0;
+        try {
+            int getRow = resultSet.getRow();
+//            LOG.trace("Запоминаем текущую запись {}", getRow);
+//            LOG.trace("Перемещаемся на последнюю запись");
+            resultSet.last();
+//            LOG.trace("Возвращаемся на запомненную запись");
+            r = resultSet.getRow();
+            resultSet.absolute(getRow);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return r;
     }
 
 }

@@ -66,6 +66,10 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     }
 
 
+    public DBService getDbService(){
+        return dbService;
+    }
+
     public static class Builder{
         private Level loggerLevel = null;
         private DBService.DBType dbType = null;
@@ -122,7 +126,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
     public boolean connect() {
         if (dbService != null && dbService.isConnection()) {
-            LOG.debug("SQL активно предыдущее подключение, используем его:" + dbService.getConnectInfo());
+            LOG.trace("SQL активно предыдущее подключение, используем его:" + dbService.getConnectInfo());
             return true;
         }
         boolean r = false;
@@ -354,6 +358,11 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
     @Override
     public boolean isSessionCorrect() {
+        return isSessionCorrect(this.session);
+    }
+
+    @Override
+    public boolean isSessionCorrect(String session) {
         boolean r = false;
         try {
             boolean c = false;
