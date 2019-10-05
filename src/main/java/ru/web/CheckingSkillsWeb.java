@@ -29,7 +29,7 @@ import ru.utils.files.PropertiesService;
 //@SessionAttributes(types = CheckingSkillsWeb.class)
 public class CheckingSkillsWeb {
 
-    private final String VERSION = "1.0";
+    private final String VERSION = "2019.10.05";
     private final String FILE_PROPERTIES = "../webapps/CheckingSkillsWeb/WEB-INF/classes/CheckingSkillsWeb.properties";
 
     private final Map<String, String> propertyMap = new LinkedHashMap<String, String>(){{

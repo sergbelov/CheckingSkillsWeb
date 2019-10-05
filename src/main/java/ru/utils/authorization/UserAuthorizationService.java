@@ -11,6 +11,8 @@ import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.UUID;
 
 /**
@@ -19,6 +21,8 @@ import java.util.UUID;
 public class UserAuthorizationService implements UserAuthorizationServiceI {
 
     private final Logger LOG = LogManager.getLogger();
+
+    DateFormat dateFormatTime = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
     private Level loggerLevel       = null;
     private DBService dbService     = null;
@@ -30,6 +34,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     private String dbPassword;
     private String fullUserName;
     private String session;
+    private long timeEnd;
     private long sessionDuration = 900000;
     private Error error = Error.NO_ERROR;
     private StringBuilder errorMessage = new StringBuilder();
@@ -52,6 +57,10 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
     public String getSession() {
         return session;
+    }
+
+    public long getTimeEnd(){
+        return timeEnd;
     }
 
     public void setSessionDuration(long sessionDuration){
@@ -158,7 +167,12 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
         }
     }
 
+
     public void endSession(){
+        endSession(this.session);
+    }
+
+    public void endSession(String session){
         LOG.info("End session: {}", session);
         PreparedStatement preparedStatement = null;
         try {
@@ -295,27 +309,34 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                             fullUserName = resultSet.getString(2);
                             if (encryptMD5(password).equals(resultSet.getString(1))) {
                                 this.session = UUID.randomUUID().toString();
-                                LOG.info("Авторизация пользователя: {} ({}) - успешно {}", userName, fullUserName, session);
+                                LOG.trace("Авторизация пользователя: {} ({}) - успешно, {}", userName, fullUserName, session);
 
                                 // наличие старой сессии
                                 preparedStatement = dbService.connection().prepareStatement("SELECT SESSION_ID FROM SESSIONS WHERE USERNAME = ? and TIME_END < ?");
                                 preparedStatement.setString(1, userName.toLowerCase());
                                 preparedStatement.setLong(2, System.currentTimeMillis());
                                 resultSet = preparedStatement.executeQuery();
+                                timeEnd = System.currentTimeMillis() + sessionDuration;
                                 if (resultSet.next()){
                                     preparedStatement = dbService.connection().prepareStatement("UPDATE SESSIONS SET SESSION_ID = ?, TIME_END = ? WHERE SESSION_ID = ?");
                                     preparedStatement.setString(1, session);
-                                    preparedStatement.setLong(2, System.currentTimeMillis() + sessionDuration);
+                                    preparedStatement.setLong(2, timeEnd);
                                     preparedStatement.setString(3, resultSet.getString(1));                                    ;
                                     preparedStatement.executeUpdate();
                                 } else { // записи с неактуальной сессией не обнаружено, создаем новую запись
                                     preparedStatement = dbService.connection().prepareStatement("INSERT INTO SESSIONS (USERNAME, SESSION_ID, TIME_END) VALUES(?, ?, ?)");
                                     preparedStatement.setString(1, userName.toLowerCase());
                                     preparedStatement.setString(2, session);
-                                    preparedStatement.setLong(3, System.currentTimeMillis() + sessionDuration);
+                                    preparedStatement.setLong(3, timeEnd);
                                     preparedStatement.executeUpdate();
                                 }
                                 res = true;
+
+                                LOG.info("Авторизация пользователя: {} ({}) - успешно, {} до {}",
+                                        userName,
+                                        fullUserName,
+                                        session,
+                                        dateFormatTime.format(timeEnd));
 
                             } else {
                                 LOG.warn("Авторизация пользователя: {} ({}) - неверный пароль", userName, fullUserName);
@@ -373,8 +394,9 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                 ResultSet resultSet = preparedStatement.executeQuery();
                 if (resultSet.next()){
                     if (resultSet.getLong(1) > System.currentTimeMillis()) {
+                        timeEnd = System.currentTimeMillis() + sessionDuration;
                         preparedStatement = dbService.connection().prepareStatement("UPDATE SESSIONS SET TIME_END = ? WHERE SESSION_ID = ?");
-                        preparedStatement.setLong(1, System.currentTimeMillis() + sessionDuration);
+                        preparedStatement.setLong(1, timeEnd);
                         preparedStatement.setString(2, session);
                         preparedStatement.executeUpdate();
                         r = true;
