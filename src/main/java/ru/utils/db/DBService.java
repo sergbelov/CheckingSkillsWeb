@@ -12,7 +12,7 @@ public class DBService {
     private static final Logger LOG = LogManager.getLogger();
 
     public enum DBType {
-        HSQLDB    {
+        HSQLDB {
             public String getDriver() {return "org.hsqldb.jdbcDriver";}
 
             public String getURL(
@@ -25,7 +25,7 @@ public class DBService {
                         dbBase;}
         },
 
-        ORACLE    {
+        ORACLE {
             public String getDriver() {return "oracle.jdbc.driver.OracleDriver";}
 
             public String getURL(
@@ -178,17 +178,17 @@ public class DBService {
         try {
             DriverManager.registerDriver((Driver) Class.forName(dbDriver).newInstance());
         } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | SQLException e) {
-            LOG.error("Ошибка при работе с драйвером: {}", dbDriver, e);
+            LOG.error("SQL Ошибка при работе с драйвером: {}", dbDriver, e);
             return false;
         }
         return true;
     }
 
     public boolean connect(){
-        LOG.debug("SQL connect: {}", dbURL);
+        LOG.debug("SQL Connect: {}", dbURL);
 
         if (isConnection()){
-            LOG.debug("SQL активно предыдущее подключение, используем его: {}",  getConnectInfo());
+            LOG.trace("SQL Подключение активно, используем: {}", getConnectInfo());
             return true;
         }
 
@@ -206,7 +206,7 @@ ResultSet.TYPE_SCROLL_INTENSIVE
 ResultSet.TYPE_SCROLL_SENSITIVE
 Указатель может двигаться вперёд и назад и чувствителен к изменениям в БД, которые сделаны другими пользователями после того, как ResultSet был создан.
 
-==============================================
+-------------------------------------------------------------------------------------
 
 ResultSet.CONCUR_READ_ONLY
 Создаёт экземпляр ResultSet только для чтения. Устанавливается по умолчанию.
@@ -216,19 +216,21 @@ ResultSet.CONCUR_UPDATABLE
 */
 
 //            statement = connection.createStatement();
-            statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            statement = connection.createStatement(
+                    ResultSet.TYPE_SCROLL_INSENSITIVE,
+                    ResultSet.CONCUR_READ_ONLY);
 
-            LOG.trace("SQL connected: {}", getConnectInfo());
+            LOG.trace("SQL Connected: {}", getConnectInfo());
 
         } catch (SQLException e) {
-            LOG.error("Ошибка при подключении к базе данных {}", dbURL, e);
+            LOG.error("SQL Ошибка при подключении к базе данных {}", dbURL, e);
             return false;
         }
         return true;
     }
 
     public void disconnect() {
-        LOG.debug("SQL disconnect");
+        LOG.debug("SQL Disconnect");
         if (isConnection()) {
             try {
                 if (dbType == DBType.HSQLDB) {
@@ -243,7 +245,7 @@ ResultSet.CONCUR_UPDATABLE
                     connection = null;
                 }
             } catch (SQLException e) {
-                LOG.error("SQL disconnect", e);
+                LOG.error("SQL Disconnect", e);
             }
         }
     }
@@ -276,14 +278,14 @@ ResultSet.CONCUR_UPDATABLE
         boolean res = false;
         if (isConnection()) {
             try {
-                LOG.trace("SQL request:\n{}", sql);
+                LOG.trace("SQL Request:\n{}", sql);
                 statement.execute(sql);
                 res = true;
             } catch (SQLException e) {
                 LOG.error("{}", sql, e);
             }
         } else {
-            LOG.error("Отсутствует подключение к базе данных");
+            LOG.error("SQL Отсутствует подключение к базе данных");
         }
         return res;
     }
@@ -292,13 +294,13 @@ ResultSet.CONCUR_UPDATABLE
         ResultSet resultSet = null;
         if (isConnection()) {
             try {
-                LOG.trace("SQL request:\n{}", sql);
+                LOG.trace("SQL Request:\n{}", sql);
                 resultSet = statement.executeQuery(sql);
             } catch (SQLException e) {
                 LOG.error("{}", sql, e);
             }
         } else {
-            LOG.error("Отсутствует подключение к базе данных");
+            LOG.error("SQL Отсутствует подключение к базе данных");
         }
         return resultSet;
     }
@@ -312,14 +314,14 @@ ResultSet.CONCUR_UPDATABLE
         int r = 0;
         try {
             int getRow = resultSet.getRow();
-//            LOG.trace("Запоминаем текущую запись {}", getRow);
-//            LOG.trace("Перемещаемся на последнюю запись");
+//            LOG.trace("SQL Запоминаем текущую запись {}", getRow);
+//            LOG.trace("SQL Перемещаемся на последнюю запись");
             resultSet.last();
-//            LOG.trace("Возвращаемся на запомненную запись");
+//            LOG.trace("SQL Возвращаемся на запомненную запись");
             r = resultSet.getRow();
             resultSet.absolute(getRow);
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOG.error(e);
         }
         return r;
     }

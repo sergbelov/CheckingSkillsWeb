@@ -24,14 +24,16 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
 
     DateFormat dateFormatTime = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
-    private Level loggerLevel       = null;
-    private DBService dbService     = null;
+    private Level loggerLevel = null;
+    private boolean dbServiceIn = false;
+    private DBService dbService = null;
     private DBService.DBType dbType = null;
     private String dbHost;
     private String dbBase;
-    private int    dbPort           = 1521;
+    private int dbPort = 1521;
     private String dbUserName;
     private String dbPassword;
+    private String userName;
     private String fullUserName;
     private String session;
     private long timeEnd;
@@ -39,17 +41,25 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     private Error error = Error.NO_ERROR;
     private StringBuilder errorMessage = new StringBuilder();
     private boolean doneCreateTable = false;
+
     public enum Error {NO_ERROR, EMPTY, LOGIN, PASSWORD, DOUBLE, CONNECT, EXEC}
 
 
     public Error getError() {
         return error;
     }
+
     public String getErrorMessage() {
         return errorMessage.toString();
     }
 
-//    public DBService dbService() { return dbService; }
+    public DBService getDbService() {
+        return dbService;
+    }
+
+    public String getUserName() {
+        return userName;
+    }
 
     public String getFullUserName() {
         return fullUserName;
@@ -59,15 +69,15 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
         return session;
     }
 
-    public long getTimeEnd(){
+    public long getTimeEnd() {
         return timeEnd;
     }
 
-    public void setSessionDuration(long sessionDuration){
+    public void setSessionDuration(long sessionDuration) {
         this.sessionDuration = sessionDuration;
     }
 
-    public void setLoggerLevel(Level loggerLevel){
+    public void setLoggerLevel(Level loggerLevel) {
         Configurator.setLevel(LOG.getName(), loggerLevel);
         if (dbService != null) {
             dbService.setLoggerLevel(loggerLevel);
@@ -75,84 +85,114 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     }
 
 
-    public void setDbService(DBService dbService){
+    public void setDbService(DBService dbService) {
         this.dbService = dbService;
     }
 
-    public DBService getDbService(){
-        return dbService;
-    }
-
-    public static class Builder{
+    public static class Builder {
         private Level loggerLevel = null;
         private DBService dbService = null;
         private DBService.DBType dbType = null;
         private String dbHost;
         private String dbBase;
-        private int    dbPort   = 1521;
+        private int dbPort = 1521;
         private String dbUserName;
         private String dbPassword;
 
-        public Builder loggerLevel(Level val){
+        public Builder loggerLevel(Level val) {
             loggerLevel = val;
             return this;
         }
-        public Builder dbService(DBService val){
+
+        public Builder dbService(DBService val) {
             dbService = val;
             return this;
         }
-        public Builder dbType(DBService.DBType val){
+
+        public Builder dbType(DBService.DBType val) {
             dbType = val;
             return this;
         }
-        public Builder dbHost(String val){
+
+        public Builder dbHost(String val) {
             dbHost = val;
             return this;
         }
-        public Builder dbBase(String val){
+
+        public Builder dbBase(String val) {
             dbBase = val;
             return this;
         }
-        public Builder dbPort(int val){
+
+        public Builder dbPort(int val) {
             dbPort = val;
             return this;
         }
-        public Builder dbUserName(String val){
+
+        public Builder dbUserName(String val) {
             dbUserName = val;
             return this;
         }
-        public Builder dbPassword(String val){
+
+        public Builder dbPassword(String val) {
             dbPassword = val;
             return this;
         }
-        public UserAuthorizationService build(){
+
+        public UserAuthorizationService build() {
             return new UserAuthorizationService(this);
         }
     }
 
-    private UserAuthorizationService(Builder builder){
+    private UserAuthorizationService(Builder builder) {
         loggerLevel = builder.loggerLevel;
-        dbService   = builder.dbService;
-        dbType      = builder.dbType;
-        dbHost      = builder.dbHost;
-        dbBase      = builder.dbBase;
-        dbPort      = builder.dbPort;
-        dbUserName  = builder.dbUserName;
-        dbPassword  = builder.dbPassword;
+        dbService = builder.dbService;
+        dbType = builder.dbType;
+        dbHost = builder.dbHost;
+        dbBase = builder.dbBase;
+        dbPort = builder.dbPort;
+        dbUserName = builder.dbUserName;
+        dbPassword = builder.dbPassword;
 
-        if (dbService!=null){
-            this.dbType = dbService.getDbType();
+        if (dbService == null) {
+            this.dbServiceIn = true;
+
+            if (dbType == null) {
+                dbType = DBService.DBType.HSQLDB;
+            }
+            if (dbHost == null) {
+                dbHost = "hsqlUsers";
+            }
+            if (dbBase == null) {
+                dbBase = "dbUsers";
+            }
+            if (dbUserName == null) {
+                dbUserName = "admin";
+            }
+            if (dbPassword == null) {
+                dbPassword = "admin";
+            }
         }
 
-        if (loggerLevel != null) {setLoggerLevel(loggerLevel);}
+        if (loggerLevel != null) {
+            setLoggerLevel(loggerLevel);
+        }
     }
 
     public boolean connect() {
-        if (dbService != null && dbService.isConnection()) {
-            LOG.trace("SQL активно предыдущее подключение, используем его:" + dbService.getConnectInfo());
-            return true;
-        }
+
         boolean r = false;
+
+        if (dbService != null && dbService.isConnection()) {
+            LOG.trace("SQL Подключение активно, используем: {}", dbService.getConnectInfo());
+
+            if (doneCreateTable || createTables()) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
         if (dbService == null) {
             dbService = new DBService.Builder()
                     .dbType(dbType)
@@ -165,7 +205,9 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                     .build();
         }
         if (dbService.connect()) {
-            if (doneCreateTable || createTables()){ r = true; }
+            if (doneCreateTable || createTables()) {
+                r = true;
+            }
         }
         if (!r) {
             this.error = Error.CONNECT;
@@ -174,40 +216,78 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
         return r;
     }
 
-    public void disconnect(){
-        if (dbService != null) {
+    public void disconnect() {
+        if (dbService != null && dbServiceIn) {
+            LOG.debug("SQL Disconnect");
             dbService.disconnect();
             dbService = null;
         }
     }
 
 
-    public void endSession(){
+    public void endSession() {
         endSession(this.session);
     }
 
-    public void endSession(String session){
-        LOG.info("End session: {}", session);
+    public void endSession(String session) {
+        LOG.info("End session: {} {}", getFullUserName(session), session);
         PreparedStatement preparedStatement = null;
         try {
             boolean c = false;
-            if (dbService != null && dbService.isConnection()) {c = true;}
+            if (dbService != null && dbService.isConnection()) {
+                c = true;
+            }
             if (connect()) {
                 preparedStatement = dbService.connection().prepareStatement("DELETE FROM SESSIONS WHERE SESSION_ID = ?");
                 preparedStatement.setString(1, session);
                 preparedStatement.execute();
                 preparedStatement.close();
-                if (!c) {disconnect();}
+                if (!c) {
+                    disconnect();
+                }
             }
         } catch (SQLException e) {
             LOG.error("End session ", e);
         }
     }
 
+    public String getUserName(String session){
+        return getFieldValue(session, "UserName");
+    }
+
+    public String getFullUserName(String session){
+        return getFieldValue(session, "FullUserName");
+    }
+
+    public long getTimeEnd(String session){
+        return Long.parseLong(getFieldValue(session, "Time_End"));
+    }
+
+    public String getFieldValue(String session, String field){
+        String r = null;
+        PreparedStatement preparedStatement = null;
+        try {
+            preparedStatement = dbService.connection().prepareStatement(
+                        "select u.USERNAME, u.FULLUSERNAME, s.TIME_END " +
+                            "from users u, SESSIONS s " +
+                            "where s.USERNAME = u.USERNAME and s.SESSION_ID = ?");
+            preparedStatement.setString(1, session);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                r = resultSet.getString(field);
+            }
+            resultSet.close();
+            preparedStatement.close();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return r;
+    }
+
     private boolean createTables(){
         LOG.debug("SQL Create tables");
         boolean r = false;
-//        switch (dbType) {
         switch (dbService.getDbType()) {
             case HSQLDB:
                 if (dbService.execute(
@@ -292,7 +372,12 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     }
 
     @Override
-    public boolean isUserCorrect(String userName, String fullUserName, String password, String password2){
+    public boolean isUserCorrect(
+            String userName,
+            String fullUserName,
+            String password,
+            String password2){
+
         boolean res= true;
         if (password2 != null) {
             if (!(res = userAdd(
@@ -307,7 +392,10 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     }
 
     @Override
-    public boolean isUserCorrect(String userName, String password) {
+    public boolean isUserCorrect(
+            String userName,
+            String password) {
+
         boolean res = false;
         fullUserName = "";
         error = Error.NO_ERROR;
@@ -324,7 +412,10 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                             fullUserName = resultSet.getString(2);
                             if (encryptMD5(password).equals(resultSet.getString(1))) {
                                 this.session = UUID.randomUUID().toString();
-                                LOG.trace("Авторизация пользователя: {} ({}) - успешно, {}", userName, fullUserName, session);
+                                LOG.trace("Авторизация пользователя: {} ({}) - успешно, {}",
+                                        userName,
+                                        fullUserName,
+                                        session);
 
                                 // наличие старой сессии
                                 preparedStatement = dbService.connection().prepareStatement("SELECT SESSION_ID FROM SESSIONS WHERE USERNAME = ? and TIME_END < ?");
@@ -354,7 +445,10 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                                         dateFormatTime.format(timeEnd));
 
                             } else {
-                                LOG.warn("Авторизация пользователя: {} ({}) - неверный пароль", userName, fullUserName);
+                                LOG.warn("Авторизация пользователя: {} ({}) - неверный пароль",
+                                        userName,
+                                        fullUserName);
+
                                 error = Error.PASSWORD;
                                 errorMessage.append("Неверный пароль для пользователя ")
                                         .append(userName)
@@ -427,8 +521,14 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
         return r;
     }
 
+
     @Override
-    public boolean userAdd(String userName, String fullUserName, String password, String password2) {
+    public boolean userAdd(
+            String userName,
+            String fullUserName,
+            String password,
+            String password2) {
+
         boolean res = false;
         this.fullUserName = "";
         error = Error.NO_ERROR;
@@ -442,7 +542,10 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                     ResultSet resultSet = preparedStatement.executeQuery();
                     if (resultSet.next()) {
                         fullUserName = resultSet.getString(1);
-                        LOG.warn("Регистрация пользователя: {} ({}) - пользователь уже зарегистрирован", userName, fullUserName);
+                        LOG.warn("Регистрация пользователя: {} ({}) - пользователь уже зарегистрирован",
+                                userName,
+                                fullUserName);
+
                         error = Error.DOUBLE;
                         errorMessage.append("Пользователь ")
                                 .append(userName)
@@ -485,7 +588,10 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
     }
 
     @Override
-    public boolean userUpdate(String userName, String password) {
+    public boolean userUpdate(
+            String userName,
+            String password) {
+
         boolean r = false;
         return r;
     }
