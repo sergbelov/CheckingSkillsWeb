@@ -12,6 +12,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -20,43 +21,86 @@ import java.util.*;
 import static java.util.Map.Entry.comparingByKey;
 
 /**
- * Created by Сергей on 19.05.2018.
+ * Created by Сергей
+ * Сервис для работы с файлом properties
  */
 public class PropertiesService {
     private static final Logger LOG = LogManager.getLogger();
-    private String fileName;
-    private boolean addKey;
-    private Map<String, String> propertyMap;
+    private String fileName;                    // properties - файл
+    private boolean addKey;                     // добавлять или нет новый параметр из файла
+    private Map<String, String> propertyMap;    // список параметров со значениями
 
+    /**
+     * Инициализация без параметров
+     * все параметры берутся из файла
+     * для получения параметров нужно выполнить readProperties
+     */
     public PropertiesService() {
         this.addKey = true; // список параметров из файла
         this.propertyMap = new LinkedHashMap<String, String>();
     }
 
+    /**
+     * Инициализация с параметрами
+     * из файла будут браться только переданные параметры
+     * для получения параметров нужно выполнить readProperties
+     * @param propertyMap
+     */
     public PropertiesService(Map<String, String> propertyMap) {
         this.addKey = false; // список параметров задан
         this.propertyMap = propertyMap;
     }
 
+    /**
+     * Инициализация с именем файла
+     * все параметры берутся из файла
+     * получение параметров происходит при инициализации
+     * @param fileName
+     */
     public PropertiesService(String fileName) {
         this.addKey = true; // список параметров из файла
         this.propertyMap = new LinkedHashMap<String, String>();
         readProperties(fileName);
     }
 
+    /**
+     * Инициализация с параметрами и именем файла
+     * из файла будут браться только переданные параметры
+     * получение параметров происходит при инициализации
+     * @param fileName
+     * @param propertyMap
+     */
     public PropertiesService(String fileName, Map<String, String> propertyMap) {
-//        this.addKey = false; // список параметров задан
-        this.addKey = true;
+//        this.addKey = true;
+        this.addKey = false; // список параметров задан
         this.propertyMap = propertyMap;
         readProperties(fileName);
     }
 
 
-    public void readProperties(String fileName, Level level) {
+    /**
+     * Устанавливается уровень логирования
+     * @param level
+     */
+    public void setLevel(Level level){
         Configurator.setLevel(LOG.getName(), level);
+    }
+
+    /**
+     * Получение параметров из файла
+     * дополнительно устанавливается уровень логирования
+     * @param fileName
+     * @param level
+     */
+    public void readProperties(String fileName, Level level) {
+        setLevel(level);
         readProperties(fileName);
     }
 
+    /**
+     * Получение параметров из файла
+     * @param fileName
+     */
     public void readProperties(String fileName) {
         this.fileName = fileName;
         StringBuilder report = new StringBuilder();
@@ -66,8 +110,24 @@ public class PropertiesService {
                 .append(":");
 
         boolean fileExists = false;
+        InputStream inputStream = null;
         File file = new File(fileName);
-        if (file.exists()) { // найден файл с параметрами
+        try {
+            inputStream = new FileInputStream(file);
+            fileExists = true;
+        } catch (Exception e) {
+            Exception exception = e;
+            try {
+                inputStream = ClassLoader.getSystemResourceAsStream(fileName);
+                fileExists = true;
+            } catch (Exception e2) {
+                LOG.warn("Ошибка при чтении параметров из файла: {}\n" +
+                        "Прямая ссылка:\n{}\n" +
+                        "Из ресурсов:\n", fileName, exception, e2);
+            }
+        }
+
+        if (fileExists && inputStream != null){
             StringBuilder reportTrace = new StringBuilder();
             reportTrace
                     .append("Параметры в файле ")
@@ -75,7 +135,7 @@ public class PropertiesService {
                     .append(":");
 
             Properties properties = new Properties();
-            try (InputStream inputStream = new FileInputStream(file)) {
+            try {
                 properties.load(inputStream);
 
                 for (Map.Entry<Object, Object> entry : properties.entrySet()) {
@@ -124,6 +184,13 @@ public class PropertiesService {
     }
 
 
+    /**
+     * Сохраняние параметра в файл
+     * !!! Внимание форматирование и комментарии в файле пропадут
+     * @param key
+     * @param value
+     * @return
+     */
     public boolean setProperty(String key, String value) {
         boolean r = false;
         Properties properties = new Properties();
@@ -147,67 +214,247 @@ public class PropertiesService {
         return r;
     }
 
+    /**
+     * Наменование текущего файла с параметрами
+     * @return
+     */
     public String getFileName() {
         return fileName;
     }
 
-    public String getString(String propertyName) {
-        return propertyMap.get(propertyName);
+    /**
+     * Проверка наличия параметра
+     * @param key
+     * @return
+     */
+    public boolean containsKey(String key){
+        return propertyMap.containsKey(key);
     }
 
-    public int getInt(String propertyName) {
-        return Integer.parseInt(propertyMap.get(propertyName));
+    /**
+     * Значение паметра в формате String
+     * @param key
+     * @return
+     */
+    public String get(String key) {
+        if (containsKey(key)) {
+            return propertyMap.get(key);
+        } else {
+            LOG.warn("Параметр <{}> не найден", key);
+            return null;
+        }
     }
 
-    public long getLong(String propertyName) {
-        return Long.parseLong(propertyMap.get(propertyName));
+    /**
+     * Значение параметра в формате String
+     * @param key
+     * @return
+     */
+    public String getString(String key) {
+        try {
+            return get(key);
+        } catch (Exception e) {
+            LOG.error("Ошибка при получении параметра {}", e);
+            return null;
+        }
     }
 
-    public double getDouble(String propertyName) {
-        return Double.parseDouble(propertyMap.get(propertyName));
+    /**
+     * Значение зашифрованного параметра
+     * @param key
+     * @return
+     */
+    public String getStringDecode(String key) {
+        try {
+            return getStringDecrypt(get(key));
+        } catch (Exception e) {
+            LOG.error("Ошибка при получении параметра {}", e);
+            return null;
+        }
     }
 
-    public float getFloat(String propertyName) {
-        return Float.parseFloat(propertyMap.get(propertyName));
+    /**
+     * Значение параметра в формате int
+     * @param key
+     * @return
+     */
+    public int getInt(String key) {
+        try {
+            return Integer.parseInt(get(key));
+        } catch (NumberFormatException e) {
+            LOG.error("Не верный формат данных {}",
+                    get(key),
+                    e);
+            return 0;
+        }
     }
 
-    public boolean getBoolean(String propertyName) {
-        return Boolean.parseBoolean(propertyMap.get(propertyName));
+    /**
+     * Значение параметра в формате long
+     * @param key
+     * @return
+     */
+    public long getLong(String key) {
+        try {
+            return Long.parseLong(get(key));
+        } catch (NumberFormatException e) {
+            LOG.error("Не верный формат данных {}",
+                    get(key),
+                    e);
+            return 0L;
+        }
     }
 
-    public Date getDate(String propertyName) {
-        return getDate(propertyName, "dd/MM/yyyy");
+    /**
+     * Значение параметра в формате double
+     * @param key
+     * @return
+     */
+    public double getDouble(String key) {
+        try {
+            return Double.parseDouble(get(key));
+        } catch (NumberFormatException e) {
+            LOG.error("Не верный формат данных {}",
+                    get(key),
+                    e);
+            return 0;
+        }
     }
 
-    public Date getDate(String propertyName, String dateFormat) {
+    /**
+     * Значение параметра в формате float
+     * @param key
+     * @return
+     */
+    public float getFloat(String key) {
+        try {
+            return Float.parseFloat(get(key));
+        } catch (NumberFormatException e) {
+            LOG.error("Не верный формат данных {}",
+                    get(key),
+                    e);
+            return 0;
+        }
+    }
+
+    /**
+     * Значение параметра в формате boolean
+     * @param key
+     * @return
+     */
+    public boolean getBoolean(String key) {
+        try {
+            return Boolean.parseBoolean(get(key));
+        } catch (Exception e) {
+            LOG.error("Ошибка при получении параметра {}", e);
+            return false;
+        }
+    }
+
+    /**
+     * Значение параметра в формате Date
+     * формат dd/MM/yyy
+     * @param key
+     * @return
+     */
+    public Date getDate(String key) {
+        return getDate(key, "dd/MM/yyyy");
+    }
+
+    /**
+     * Значение параметра в формате Date
+     * формат задается параметром dateFormat
+     * @param key
+     * @param dateFormat
+     * @return
+     */
+    public Date getDate(String key, String dateFormat) {
         Date date = null;
         try {
             DateFormat simpleDateFormat = new SimpleDateFormat(dateFormat);
-            date = simpleDateFormat.parse(propertyMap.get(propertyName));
+            date = simpleDateFormat.parse(get(key));
         } catch (ParseException e) {
-            LOG.error(e);
+            LOG.error("Не верный формат данных {}",
+                    get(key),
+                    e);
         }
         return date;
     }
 
-    public Level getLevel(String propertyName) {
-        return Level.getLevel(propertyMap.get(propertyName));
+    /**
+     * Значение параметра в формате Level
+     * @param key
+     * @return
+     */
+    public Level getLevel(String key) {
+        try {
+            return Level.getLevel(get(key));
+        } catch (Exception e) {
+            LOG.error("Ошибка при получении параметра {}", e);
+            return null;
+        }
     }
 
-    public String[] getStringList(String propertyName) {
-        return propertyMap.get(propertyName).split(",");
+    /**
+     * Значение параметра в формате String[]
+     * @param key
+     * @return
+     */
+    public String[] getStringList(String key) {
+        return get(key).split(",");
     }
 
-    public int[] getIntList(String propertyName) {
-        return Arrays
-                .stream(propertyMap.get(propertyName).split(","))
-                .mapToInt(Integer::parseInt)
-                .toArray();
+    /**
+     * Значение параметра в формате int[]
+     * @param key
+     * @return
+     */
+    public int[] getIntList(String key) {
+        try {
+            return Arrays
+                    .stream(get(key).split(","))
+                    .mapToInt(Integer::parseInt)
+                    .toArray();
+        } catch (Exception e) {
+            LOG.error("Ошибка при получении параметра {}", e);
+            return null;
+        }
     }
 
-    public JSONObject getJSONObject(String propertyName) {
+    /**
+     * Значение параметра в формате byte[]
+     * radix = 16
+     * @param key
+     * @return
+     */
+    public byte[] getByteArray(String key) {
+        return getByteArray(key, 16);
+    }
+
+    /**
+     * Значение параметра в формате byte[]
+     * radix задается параметром
+     * @param key
+     * @param radix
+     * @return
+     */
+    public byte[] getByteArray(String key, int radix) {
+        try {
+            return new BigInteger(get(key), radix).toByteArray();
+        } catch (Exception e) {
+            LOG.error("Ошибка при получении параметра {}", e);
+            return null;
+        }
+    }
+
+    /**
+     * Значение параметра в формате JSONObject
+     * @param key
+     * @return
+     */
+    public JSONObject getJSONObject(String key) {
         JSONObject jsonObject = null;
-        String value = propertyMap.get(propertyName);
+        String value = get(key);
         if (value != null && value.startsWith("{")) {
             try {
                 jsonObject = new JSONObject(value);
@@ -218,9 +465,14 @@ public class PropertiesService {
         return jsonObject;
     }
 
-    public JSONArray getJSONArray(String propertyName) {
+    /**
+     * Значение параметра в формате JSONArray
+     * @param key
+     * @return
+     */
+    public JSONArray getJSONArray(String key) {
         JSONArray jsonArray = null;
-        String value = propertyMap.get(propertyName);
+        String value = get(key);
         if (value != null && value.startsWith("[")) {
             try {
                 jsonArray = new JSONArray(value);
@@ -231,16 +483,45 @@ public class PropertiesService {
         return jsonArray;
     }
 
-    public <T> List<T> getJsonList(String propertyName, TypeToken typeToken) {
+    /**
+     * Значение параметра в формате List<T>
+     * @param key
+     * @param typeToken
+     * @param <T>
+     * @return
+     */
+    public <T> List<T> getJsonList(String key, TypeToken typeToken) {
         Gson gson = new GsonBuilder().create();
-        return gson.fromJson(propertyMap.get(propertyName), typeToken.getType());
+        return gson.fromJson(get(key), typeToken.getType());
     }
 /*
-    public List<?> getJsonList(String propertyName) {
+    public List<?> getJsonList(String key) {
         Gson gson = new GsonBuilder().create();
-        String jsonString = propertyMap.get(propertyName);
+        String jsonString = get(key);
         return gson.fromJson(jsonString, new TypeToken<List<?>>(){}.getType());
     }
 */
+
+    /**
+     * Шифрование строки
+     * @param data
+     * @return
+     */
+    private String getStringEncrypt(String data) {
+        return Base64.getEncoder().encodeToString(data.getBytes());
+    }
+
+    /**
+     * Дешифрование строки
+     * @param data
+     * @return
+     */
+    private String getStringDecrypt(String data) {
+        try {
+            return new String((Base64.getDecoder().decode(data)));
+        } catch (Exception e) {
+            return "";
+        }
+    }
 
 }

@@ -30,7 +30,8 @@ import ru.utils.files.PropertiesService;
 public class CheckingSkillsWeb {
 
     private final String VERSION = "2019.10.05";
-    private final String FILE_PROPERTIES = "../webapps/CheckingSkillsWeb/WEB-INF/classes/CheckingSkillsWeb.properties";
+//    private final String FILE_PROPERTIES = "../webapps/CheckingSkillsWeb/WEB-INF/classes/CheckingSkillsWeb.properties";
+    private final String FILE_PROPERTIES = "/CheckingSkillsWeb2.properties";
 
     private final Map<String, String> propertyMap = new LinkedHashMap<String, String>(){{
         put("QUESTION_MAX",     "10");                                  // максимальное количество задаваемых вопросов
@@ -38,7 +39,7 @@ public class CheckingSkillsWeb {
         put("RESULT_PATH",      "C:/TEMP/questions/result/");           // путь для сохранения результатов тестирования
         put("RESULT_FORMAT",    "JSON");                                // формат файла с результатами тестирования XML или JSON
         put("SHOW_ANSWERS",     "TRUE");                                // отображать правильные варианты ответов
-        put("LOGGER_LEVEL",     "WARN");                                // уровень логирования
+        put("LOGGER_LEVEL",     "INFO");                                // уровень логирования
         put("DB_TYPE",          "HSQLDB");                              // тип SQL-подключения: HSQLDB, ORACLE, SQLSERVER
         put("DB_HOST",          "C:/TEMP/questions/HSQL/");             // DB host
         put("DB_BASE",          "DB_CheckingSkills");                   // DB base name
