@@ -105,39 +105,46 @@ public class PropertiesService {
         this.fileName = fileName;
         StringBuilder report = new StringBuilder();
         report
-                .append("Параметры из файла ")
-                .append(fileName)
-                .append(":");
+            .append("Параметры из файла ")
+            .append(fileName)
+            .append(":");
 
         boolean fileExists = false;
-        InputStream inputStream = null;
+        Properties properties = new Properties();
         File file = new File(fileName);
-        try {
-            inputStream = new FileInputStream(file);
-            fileExists = true;
-        } catch (Exception e) {
-            Exception exception = e;
-            try {
-                inputStream = ClassLoader.getSystemResourceAsStream(fileName);
+        if (file.exists()) { // существует файл по прямой ссылке
+            try(InputStream inputStream = new FileInputStream(file)){
+                properties.load(inputStream);
                 fileExists = true;
-            } catch (Exception e2) {
-                LOG.warn("Ошибка при чтении параметров из файла: {}\n" +
-                        "Прямая ссылка:\n{}\n" +
-                        "Из ресурсов:\n", fileName, exception, e2);
+            } catch (Exception e) {
+                LOG.warn("Ошибка при чтении параметров из файла {} (прямая сылка)", fileName, e);
+                report.append("\r\n\tОшибка при чтении параметров из файла ")
+                        .append(fileName)
+                        .append(" (прямая ссылка) используем параметры по умолчанию");
+            }
+        } else { // ищем файл в ресурсах
+
+            if (!fileName.startsWith("/")){
+                fileName = "/" + fileName;
+            }
+            try (InputStream inputStream = getClass().getResourceAsStream(fileName)){
+                properties.load(inputStream);
+                fileExists = true;
+            } catch (Exception e) {
+                LOG.warn("Ошибка при чтении параметров из файла {} (ресурсы)", fileName, e);
+                report.append("\r\n\tОшибка при чтении параметров из файла ")
+                        .append(fileName)
+                        .append(" (ресурсы) используем параметры по умолчанию");
             }
         }
 
-        if (fileExists && inputStream != null){
+        if (fileExists ){
             StringBuilder reportTrace = new StringBuilder();
             reportTrace
                     .append("Параметры в файле ")
                     .append(fileName)
                     .append(":");
-
-            Properties properties = new Properties();
             try {
-                properties.load(inputStream);
-
                 for (Map.Entry<Object, Object> entry : properties.entrySet()) {
                     reportTrace
                             .append("\r\n\t")
@@ -156,11 +163,9 @@ public class PropertiesService {
 //                    propertyMap.put(entry.getKey(), pr.getProperty(entry.getKey(), entry.getValue()));
 //                }
                 fileExists = true;
-            } catch (IOException e) {
+            } catch (Exception e) {
                 LOG.error(e);
             }
-        } else {
-            report.append("\r\n\tФайл не найден, используем параметры по умолчанию:");
         }
 
         // параметры со значениями

@@ -31,7 +31,7 @@ public class CheckingSkillsWeb {
 
     private final String VERSION = "2019.10.05";
 //    private final String FILE_PROPERTIES = "../webapps/CheckingSkillsWeb/WEB-INF/classes/CheckingSkillsWeb.properties";
-    private final String FILE_PROPERTIES = "/CheckingSkillsWeb2.properties";
+    private final String FILE_PROPERTIES = "CheckingSkillsWeb.properties";
 
     private final Map<String, String> propertyMap = new LinkedHashMap<String, String>(){{
         put("QUESTION_MAX",     "10");                                  // максимальное количество задаваемых вопросов
