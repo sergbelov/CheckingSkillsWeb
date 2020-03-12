@@ -1,5 +1,7 @@
 package ru.utils.files;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -29,6 +31,7 @@ public class PropertiesService {
     private String fileName;                    // properties - файл
     private boolean addKey;                     // добавлять или нет новый параметр из файла
     private Map<String, String> propertyMap;    // список параметров со значениями
+    private ObjectMapper mapper = new ObjectMapper();
 
     /**
      * Инициализация без параметров
@@ -506,6 +509,36 @@ public class PropertiesService {
         return gson.fromJson(jsonString, new TypeToken<List<?>>(){}.getType());
     }
 */
+
+    /**
+     * Значение параметра в формате List<T>
+     * @param key
+     * @param <T>
+     * @return
+     */
+    public <T> List<T> getJsonList(String key) {
+        List<T> list = null;
+        try {
+            list = mapper.readValue(get(key), new TypeReference<List<T>>() {});
+        } catch (IOException e) {
+            LOG.error("Ошибка при чтении параметра {} из файла {}", key, fileName);
+        }
+//            testPlansList = mapper.readValue(new File(FILE_TEST_PLAN), new TypeReference<List<TestPlans>>() {});
+//            testPlansArray = mapper.readValue(new File(FILE_TEST_PLAN), TestPlans[].class);
+        return list;
+    }
+
+    public <T> T[] getJsonArray(String key) {
+        T[] array = null;
+        try {
+            array = mapper.readValue(get(key), new TypeReference<T[]>() {});
+        } catch (IOException e) {
+            LOG.error("Ошибка при чтении параметра {} из файла {}", key, fileName);
+        }
+//            testPlansList = mapper.readValue(new File(FILE_TEST_PLAN), new TypeReference<List<TestPlans>>() {});
+//            testPlansArray = mapper.readValue(new File(FILE_TEST_PLAN), TestPlans[].class);
+        return array;
+    }
 
     /**
      * Шифрование строки
