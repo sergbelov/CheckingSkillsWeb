@@ -20,7 +20,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import static java.util.Map.Entry.comparingByKey;
+//import static java.util.Map.Entry.comparingByKey;
 
 /**
  * Created by Сергей
@@ -513,30 +513,34 @@ public class PropertiesService {
     /**
      * Значение параметра в формате List<T>
      * @param key
+     * @param typeReference TypeReference<List<T>>(){}
      * @param <T>
      * @return
      */
-    public <T> List<T> getJsonList(String key) {
+    public <T> List<T> getJsonList(String key, TypeReference typeReference) {
         List<T> list = null;
         try {
-            list = mapper.readValue(get(key), new TypeReference<List<T>>() {});
-        } catch (IOException e) {
+            list = mapper.readValue(get(key), typeReference);
+        } catch (Exception e) {
             LOG.error("Ошибка при чтении параметра {} из файла {}", key, fileName);
         }
-//            testPlansList = mapper.readValue(new File(FILE_TEST_PLAN), new TypeReference<List<TestPlans>>() {});
-//            testPlansArray = mapper.readValue(new File(FILE_TEST_PLAN), TestPlans[].class);
         return list;
     }
 
-    public <T> T[] getJsonArray(String key) {
+    /**
+     * Значение параметра в формате T[]
+     * @param key
+     * @param typeReference TypeReference<T[]>(){}
+     * @param <T>
+     * @return
+     */
+    public <T> T[] getJsonArray(String key, TypeReference typeReference) {
         T[] array = null;
         try {
-            array = mapper.readValue(get(key), new TypeReference<T[]>() {});
-        } catch (IOException e) {
+            array = mapper.readValue(get(key), typeReference);
+        } catch (Exception e) {
             LOG.error("Ошибка при чтении параметра {} из файла {}", key, fileName);
         }
-//            testPlansList = mapper.readValue(new File(FILE_TEST_PLAN), new TypeReference<List<TestPlans>>() {});
-//            testPlansArray = mapper.readValue(new File(FILE_TEST_PLAN), TestPlans[].class);
         return array;
     }
 
