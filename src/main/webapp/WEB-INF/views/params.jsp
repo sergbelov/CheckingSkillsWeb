@@ -17,6 +17,10 @@
         <title>Тестирование знаний (выбор темы)</title>
     </head>
     <body class="ru" id="ru">
+<%--
+    <%@ include file="header.jsp" %>
+--%>
+
         <div id="page">
             <header id=header" role="banner">
                 <form:form method='post' action="login.jsp" name='logout' autocomplete='on' modelAttribute="login">
