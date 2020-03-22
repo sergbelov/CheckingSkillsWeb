@@ -20,6 +20,7 @@ import org.springframework.web.servlet.ModelAndView;
 import ru.utils.authorization.UserAuthorizationService;
 import ru.questions.Questions;
 import ru.utils.db.DBService;
+import ru.utils.db.DBType;
 import ru.utils.files.PropertiesService;
 
 @Controller
@@ -40,10 +41,7 @@ public class CheckingSkillsWeb {
         put("RESULT_FORMAT",    "JSON");                                // формат файла с результатами тестирования XML или JSON
         put("SHOW_ANSWERS",     "TRUE");                                // отображать правильные варианты ответов
         put("LOGGER_LEVEL",     "INFO");                                // уровень логирования
-        put("DB_TYPE",          "HSQLDB");                              // тип SQL-подключения: HSQLDB, ORACLE, SQLSERVER
-        put("DB_HOST",          "C:/TEMP/questions/HSQL/");             // DB host
-        put("DB_BASE",          "DB_CheckingSkills");                   // DB base name
-        put("DB_PORT",          "1521");                                // DB port для Oracle
+        put("DB_URL",           "jdbc:hsqldb:file:C:/TEMP/questions/HSQL/TEMP;hsqldb.lock_file=false");                              // тип SQL-подключения: HSQLDB, ORACLE, SQLSERVER
         put("DB_USERNAME",      "admin");                               // DB пользователь
         put("DB_PASSWORD",      "admin");                               // DB пароль
         put("USER_REGISTRATION","true");                                // Разрешена самостоятельная регистрация пользователей
@@ -96,8 +94,15 @@ public class CheckingSkillsWeb {
     private String session;
 
 
-//    @RequestMapping(value = {"/", "/login", "/logout", "/registration", "/params", "/desktop", "/result"}, method = RequestMethod.GET)
-    @RequestMapping(value = {"/", "/login", "/logout", "/registration", "/params", "/desktop", "/result"})
+    @RequestMapping(value = {"/", "/login", "/logout", "/registration", "/params", "/desktop", "/result"}, method = RequestMethod.GET)
+    private ModelAndView showLoginGet() {
+//        return createModel("forward:/login", new WebParamsObject());
+        return createModel("login", new WebParamsObject());
+    }
+
+    //    @RequestMapping(value = {"/", "/login", "/logout", "/registration", "/params", "/desktop", "/result"}, method = RequestMethod.GET)
+//    @RequestMapping(value = {"/", "/login", "/logout", "/registration", "/params", "/desktop", "/result"})
+    @RequestMapping(value = {"/", "/login", "/logout"})
     private ModelAndView showLogin(HttpServletRequest request,
                                    HttpServletResponse response) throws MessagingException {
 
@@ -112,6 +117,7 @@ public class CheckingSkillsWeb {
             userAuthorizationService.endSession();
             webUser.clear();
         }
+
 //        return createModel("login", new WebParamsObject());
         return createModel("login", webParams);
     }
@@ -161,10 +167,7 @@ public class CheckingSkillsWeb {
 
         if (userAuthorizationService == null) {
             userAuthorizationService = new UserAuthorizationService.Builder()
-                    .dbType(DBService.DBType.valueOf(propertiesService.getString("DB_TYPE")))
-                    .dbHost(propertiesService.getString("DB_HOST"))
-                    .dbBase(propertiesService.getString("DB_BASE"))
-                    .dbPort(propertiesService.getInt("DB_PORT"))
+                    .dbUrl(propertiesService.getString("DB_URL"))
                     .dbUserName(propertiesService.getString("DB_USERNAME"))
                     .dbPassword(propertiesService.getString("DB_PASSWORD"))
                     .loggerLevel(propertiesService.getLevel("LOGGER_LEVEL"))
@@ -185,7 +188,7 @@ public class CheckingSkillsWeb {
             errorMessage = userAuthorizationService.getErrorMessage();
         }
 
-        userAuthorizationService.disconnect();
+//        userAuthorizationService.disconnect();
 
         if (isOk) {
             webUser.setFullUserName(userAuthorizationService.getFullUserName());
