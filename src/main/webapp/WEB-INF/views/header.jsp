@@ -1,6 +1,3 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
-<html>
-<body>
 <div id="page">
     <header id=header" role="banner">
         <form:form method='post' action="login.jsp" name='logout' autocomplete='on' modelAttribute="login">
@@ -26,5 +23,3 @@
         </form:form>
     </header>
 </div>
-</body>
-</html>
