@@ -1,3 +1,4 @@
+/*
 @font-face {
     font-family: 'Open Sans';
     src: url('/itg/web/new/css/fonts/opensans-semibold-webfont.eot');
@@ -6,6 +7,7 @@
     font-weight: 600;
     font-style: normal;
 }
+*/
 
 body {
     background: #C9C9C9;
@@ -119,7 +121,7 @@ body {
 
 .popup_form {
     padding: 30px 10px 30px;
-    width: 450px;
+    width: 500px;
     height: 110px;
     background: #edebeb;
     -webkit-border-radius: 0px 0px 4px 4px;

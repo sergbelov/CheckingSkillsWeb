@@ -3,7 +3,7 @@ package ru.web;
 import org.springframework.stereotype.Component;
 
 @Component
-public class WebParamsObject {
+public class WebParams {
 
     private String userName;
     private String fullUserName;

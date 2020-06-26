@@ -37,7 +37,7 @@
     </Appenders>
 
     <Loggers>
-        <Root level="TRACE">
+        <Root level="INFO">
             <appender-ref ref="console"/>
             <appender-ref ref="file-log"/>
         </Root>

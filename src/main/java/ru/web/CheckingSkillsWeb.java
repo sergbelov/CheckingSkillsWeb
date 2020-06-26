@@ -2,16 +2,22 @@ package ru.web;
 
 import com.google.common.collect.ImmutableMap;
 
+import java.io.*;
 import java.util.*;
+import java.util.jar.Manifest;
 import javax.mail.MessagingException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import javafx.application.Application;
 import okhttp3.*;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.maven.model.Model;
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
+import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.springframework.context.annotation.Scope;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,8 +25,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.ModelAndView;
 import ru.utils.authorization.UserAuthorizationService;
 import ru.questions.Questions;
-import ru.utils.db.DBService;
-import ru.utils.db.DBType;
 import ru.utils.files.PropertiesService;
 
 @Controller
@@ -30,74 +34,96 @@ import ru.utils.files.PropertiesService;
 //@SessionAttributes(types = CheckingSkillsWeb.class)
 public class CheckingSkillsWeb {
 
-    private final String VERSION = "2019.10.05";
-//    private final String FILE_PROPERTIES = "../webapps/CheckingSkillsWeb/WEB-INF/classes/CheckingSkillsWeb.properties";
+//    private final String VERSION = "2019.10.05";
+    private String VERSION = "none";
+    //    private final String FILE_PROPERTIES = "../webapps/CheckingSkillsWeb/WEB-INF/classes/CheckingSkillsWeb.properties";
     private final String FILE_PROPERTIES = "CheckingSkillsWeb.properties";
 
-    private final Map<String, String> propertyMap = new LinkedHashMap<String, String>(){{
-        put("QUESTION_MAX",     "10");                                  // максимальное количество задаваемых вопросов
-        put("QUESTION_FILE",    "C:/TEMP/questions/Questions.json");    // файл с вопросами
-        put("RESULT_PATH",      "C:/TEMP/questions/result/");           // путь для сохранения результатов тестирования
-        put("RESULT_FORMAT",    "JSON");                                // формат файла с результатами тестирования XML или JSON
-        put("SHOW_ANSWERS",     "TRUE");                                // отображать правильные варианты ответов
-        put("LOGGER_LEVEL",     "INFO");                                // уровень логирования
-        put("DB_URL",           "jdbc:hsqldb:file:C:/TEMP/questions/HSQL/TEMP;hsqldb.lock_file=false");                              // тип SQL-подключения: HSQLDB, ORACLE, SQLSERVER
-        put("DB_USERNAME",      "admin");                               // DB пользователь
-        put("DB_PASSWORD",      "admin");                               // DB пароль
-        put("USER_REGISTRATION","true");                                // Разрешена самостоятельная регистрация пользователей
+    private final Map<String, String> propertyMap = new LinkedHashMap<String, String>() {{
+        put("QUESTION_MAX", "10");                                  // максимальное количество задаваемых вопросов
+        put("QUESTION_FILE", "C:/TEMP/questions/Questions.json");    // файл с вопросами
+        put("RESULT_PATH", "C:/TEMP/questions/result/");           // путь для сохранения результатов тестирования
+        put("RESULT_FORMAT", "JSON");                                // формат файла с результатами тестирования XML или JSON
+        put("SHOW_ANSWERS", "TRUE");                                // отображать правильные варианты ответов
+        put("LOGGER_LEVEL", "INFO");                                // уровень логирования
+        put("DB_URL", "jdbc:hsqldb:file:C:/TEMP/questions/HSQL/TEMP;hsqldb.lock_file=false");                              // тип SQL-подключения: HSQLDB, ORACLE, SQLSERVER
+        put("DB_USERNAME", "admin");                               // DB пользователь
+        put("DB_PASSWORD", "admin");                               // DB пароль
+        put("USER_REGISTRATION", "true");                                // Разрешена самостоятельная регистрация пользователей
     }};
 
 
-/*
-    // параметры из CheckingSkillsWeb.properties
-    @Value("${QUESTION_MAX:10}")
-    private int QUESTION_MAX;
+    /*
+        // параметры из CheckingSkillsWeb.properties
+        @Value("${QUESTION_MAX:10}")
+        private int QUESTION_MAX;
 
-    @Value("${QUESTION_FILE:C:/TEMP/questions/XMLDataTest.json}")
-    private String QUESTION_FILE;
+        @Value("${QUESTION_FILE:C:/TEMP/questions/XMLDataTest.json}")
+        private String QUESTION_FILE;
 
-    @Value("${RESULT_PATH:C:/TEMP/questions/result/}")
-    private String RESULT_PATH;
+        @Value("${RESULT_PATH:C:/TEMP/questions/result/}")
+        private String RESULT_PATH;
 
-    @Value("${RESULT_FORMAT:JSON")
-    private String RESULT_FORMAT;
+        @Value("${RESULT_FORMAT:JSON")
+        private String RESULT_FORMAT;
 
-    @Value("${LOGGER_LEVEL:DEBUG}")
-    private Level LOGGER_LEVEL;
+        @Value("${LOGGER_LEVEL:DEBUG}")
+        private Level LOGGER_LEVEL;
 
-    @Value("${HSQL_PATH:C:/TEMP/questions/HSQL/}")
-    private String HSQL_PATH;
+        @Value("${HSQL_PATH:C:/TEMP/questions/HSQL/}")
+        private String HSQL_PATH;
 
-    @Value("${HSQL_DB:DB_CheckingSkills}")
-    private String HSQL_DB;
+        @Value("${HSQL_DB:DB_CheckingSkills}")
+        private String HSQL_DB;
 
-    @Value("${HSQL_LOGIN:admin}")
-    private String HSQL_LOGIN;
+        @Value("${HSQL_LOGIN:admin}")
+        private String HSQL_LOGIN;
 
-    @Value("${HSQL_PASSWORD:admin}")
-    private String HSQL_PASSWORD;
+        @Value("${HSQL_PASSWORD:admin}")
+        private String HSQL_PASSWORD;
 
-    @Value("${USER_REGISTRATION:true}")
-    private boolean USER_REGISTRATION;
-*/
+        @Value("${USER_REGISTRATION:true}")
+        private boolean USER_REGISTRATION;
+    */
     //    private static final Logger LOG = LogManager.getLogger(CheckingSkillsWeb.class);
     private static final Logger LOG = LogManager.getLogger();
     private static final MediaType JSON = MediaType.parse("application/json; charset=UTF-8");
 
-    private WebUser webUser = new WebUser();
-    private WebParamsObject webParams = new WebParamsObject();
+//    private WebUser webUser = new WebUser();
+//    private WebParamsObject webParams = new WebParamsObject();
+//    private Questions questions = new Questions();
+
+    private ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("applicationContext.xml");
+    private WebUser webUser = context.getBean("webUserBean", WebUser.class);
+    private WebParams webParams = context.getBean("webParamsBean", WebParams.class);
+    private Questions questions = context.getBean("questionsBean", Questions.class);
+
     private PropertiesService propertiesService = new PropertiesService(propertyMap);
-    private Questions questions = new Questions();
     private UserAuthorizationService userAuthorizationService = null;
 
     private boolean isOk;
     private String session;
 
+    public CheckingSkillsWeb(){
+        String pathToPom = "../webapps/CheckingSkillsWeb/META-INF/maven/ru.utils/CheckingSkillsWeb/pom.xml";
+        if ((new File(pathToPom)).exists()) {
+            Model model = null;
+            try (BufferedReader bufferedReader = new BufferedReader(new FileReader(pathToPom));) {
+                MavenXpp3Reader reader = new MavenXpp3Reader();
+                model = reader.read(bufferedReader);
+            } catch (Exception e) {
+                LOG.error("Ошибка при чтении данных из pom.xml", e);
+            }
+            if (model != null) {
+                VERSION = model.getVersion();
+            }
+        }
+    }
 
     @RequestMapping(value = {"/", "/login", "/logout", "/registration", "/params", "/desktop", "/result"}, method = RequestMethod.GET)
     private ModelAndView showLoginGet() {
 //        return createModel("forward:/login", new WebParamsObject());
-        return createModel("login", new WebParamsObject());
+        return createModel("login", new WebParams());
     }
 
     //    @RequestMapping(value = {"/", "/login", "/logout", "/registration", "/params", "/desktop", "/result"}, method = RequestMethod.GET)
@@ -112,7 +138,7 @@ public class CheckingSkillsWeb {
         response.setHeader("pragma", "no-cache");
 */
 
-        if (webUser.isDefinedUser()){
+        if (webUser.isDefinedUser()) {
             LOG.info("Выход пользователя {} ({})", webUser.getUserName(), webUser.getFullUserName());
             userAuthorizationService.endSession();
             webUser.clear();
@@ -123,7 +149,7 @@ public class CheckingSkillsWeb {
     }
 
     @RequestMapping(value = "/registration", method = RequestMethod.POST)
-    private ModelAndView showRegistration(@ModelAttribute("login") WebParamsObject webParams,
+    private ModelAndView showRegistration(@ModelAttribute("login") WebParams webParams,
                                           HttpServletRequest request,
                                           HttpServletResponse response) throws MessagingException {
 
@@ -137,7 +163,7 @@ public class CheckingSkillsWeb {
     }
 
     @RequestMapping(value = "/params", method = RequestMethod.POST)
-    private ModelAndView createParams(@ModelAttribute("login") WebParamsObject webParams,
+    private ModelAndView createParams(@ModelAttribute("login") WebParams webParams,
                                       HttpServletRequest request,
                                       HttpServletResponse response) throws MessagingException {
 
@@ -159,7 +185,7 @@ public class CheckingSkillsWeb {
             if (webParams.getFullUserName() != null && !webParams.getFullUserName().isEmpty()) {
                 webUser.setFullUserName((webParams.getFullUserName()));
             }
-        } else{
+        } else {
             webUser.clear();
         }
 
@@ -180,7 +206,7 @@ public class CheckingSkillsWeb {
             errorMessage = userAuthorizationService.getErrorMessage();
         }
 
-        if ( !(isOk = userAuthorizationService.isUserCorrect(
+        if (!(isOk = userAuthorizationService.isUserCorrect(
                 webUser.getUserName(),
                 webParams.getFullUserName(),
                 webUser.getPassword(),
@@ -213,7 +239,7 @@ public class CheckingSkillsWeb {
 
         } else {
             if (propertiesService.getBoolean("USER_REGISTRATION") &&
-                userAuthorizationService.getError().equals(UserAuthorizationService.Error.LOGIN)) {
+                    userAuthorizationService.getError().equals(UserAuthorizationService.Error.LOGIN)) {
 
                 webUser.setFullUserName("");
                 mav = createModel("registration", webParams);
@@ -229,7 +255,7 @@ public class CheckingSkillsWeb {
     }
 
     @RequestMapping(value = "/desktop", method = RequestMethod.POST)
-    private ModelAndView createDesktop(@ModelAttribute("params") WebParamsObject webParams,
+    private ModelAndView createDesktop(@ModelAttribute("params") WebParams webParams,
                                        HttpServletRequest request,
                                        HttpServletResponse response) throws MessagingException {
 
@@ -268,7 +294,7 @@ public class CheckingSkillsWeb {
     }
 
     @RequestMapping(value = "/result", method = RequestMethod.POST)
-    private ModelAndView createResult(@ModelAttribute("desktop") WebParamsObject webParams,
+    private ModelAndView createResult(@ModelAttribute("desktop") WebParams webParams,
                                       HttpServletRequest request,
                                       HttpServletResponse response) throws MessagingException {
 
@@ -288,8 +314,8 @@ public class CheckingSkillsWeb {
         }
 */
 
-        for (int q = 0; q < questions.getQuestionMax(); q++){
-            if (request.getParameterValues("answer"+q) != null) {
+        for (int q = 0; q < questions.getQuestionMax(); q++) {
+            if (request.getParameterValues("answer" + q) != null) {
 //            LOG.info( q + " - "+ request.getParameterValues("answer"+q).length);
 //            res.append("Вопрос:\r\n")
 //               .append(questions.getString(q).getQuestion()).append("\r\n");
@@ -317,11 +343,11 @@ public class CheckingSkillsWeb {
         return mav;
     }
 
-    private ModelAndView createModel(String viewName, WebParamsObject webParams) {
+    private ModelAndView createModel(String viewName, WebParams webParams) {
         return createModel(viewName, webParams, Optional.empty());
     }
 
-    private ModelAndView createModel(String viewName, WebParamsObject webParams, Optional<String> errorMessage) {
+    private ModelAndView createModel(String viewName, WebParams webParams, Optional<String> errorMessage) {
         ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
         if (errorMessage.isPresent()) {
             builder = builder.put("errorMessage", errorMessage.get());
