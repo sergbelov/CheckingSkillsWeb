@@ -4,8 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+//import org.apache.logging.log4j.LogManager;
+//import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.text.DateFormat;
@@ -19,7 +21,7 @@ import java.util.List;
  */
 public class SaveResultJson implements SaveResult {
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOG = LoggerFactory.getLogger(SaveResultJson.class);
 
     /**
      * Сохранение результата тестирования в XML-файл
@@ -70,11 +72,11 @@ public class SaveResultJson implements SaveResult {
             ) {
                 resultTestList = gson.fromJson(reader, new TypeToken<List<ResultTest>>() {}.getType());
             } catch (FileNotFoundException e ) {
-                LOG.error(e);
+                LOG.error("", e);
             } catch (UnsupportedEncodingException e) {
-                LOG.error(e);
+                LOG.error("", e);
             } catch (IOException e) {
-                LOG.error(e);
+                LOG.error("", e);
             }
         }
         resultTestList.add(resultTest);
@@ -88,7 +90,7 @@ public class SaveResultJson implements SaveResult {
             fw.write(json );
             fw.flush();
         } catch (IOException e) {
-            LOG.error(e);
+            LOG.error("", e);
         };
 
     }

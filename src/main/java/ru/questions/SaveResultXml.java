@@ -14,8 +14,10 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+//import org.apache.logging.log4j.LogManager;
+//import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -26,7 +28,7 @@ import org.w3c.dom.Node;
  */
 public class SaveResultXml implements SaveResult {
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOG = LoggerFactory.getLogger(SaveResultXml.class);
 
     /**
      * Сохранение результата тестирования в XML-файл
@@ -96,7 +98,7 @@ public class SaveResultXml implements SaveResult {
             transformer.transform(source, streamResult);
 
         } catch (Exception e) {
-            LOG.error(e);
+            LOG.error("", e);
         } finally {
             if (doc != null) doc = null;
 //            Runtime.getRuntime().gc(); // чистка памяти

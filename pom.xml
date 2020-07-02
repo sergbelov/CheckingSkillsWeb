@@ -15,10 +15,12 @@
         <java.version>1.8</java.version>
 <!--        <spring.version>4.3.9.RELEASE</spring.version>-->
         <spring.version>5.1.4.RELEASE</spring.version>
-        <log4j.version>2.8.2</log4j.version>
+        <log4j.version>2.13.2</log4j.version>
         <hsqldb.version>2.4.0</hsqldb.version>
         <ojdbc6.version>11.2.0.3</ojdbc6.version>
         <mssql-jdbc.version>6.2.0.jre8</mssql-jdbc.version>
+        <c3p0.version>0.9.5.5</c3p0.version>
+        <hikari.version>3.4.5</hikari.version>
     </properties>
     
     <repositories>
@@ -39,6 +41,24 @@
             <version>4.12</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Logger log4j slf4j-->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest-core</artifactId>
@@ -100,12 +120,7 @@
             <version>2.0.1</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-            <version>${log4j.version}</version>
-        </dependency>
-        <!---->
+
         <dependency>
             <groupId>jstl</groupId>
             <artifactId>jstl</artifactId>
@@ -219,11 +234,18 @@
             <version>${mssql-jdbc.version}</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/com.mchange/c3p0 -->
+        <!-- https://mvnrepository.com/artifact/com.mchange/c3p0  com.mchange.v2.c3p0.ComboPooledDataSource -->
         <dependency>
             <groupId>com.mchange</groupId>
             <artifactId>c3p0</artifactId>
-            <version>0.9.5.5</version>
+            <version>${c3p0.version}</version>
+        </dependency>
+
+        <!-- HikariCP Connection Pooling-->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>${hikari.version}</version>
         </dependency>
 
         <dependency>

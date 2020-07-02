@@ -1,10 +1,15 @@
 package ru.utils.authorization;
 
 import org.apache.commons.codec.binary.Hex;
-import org.apache.logging.log4j.Level;
+/*
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+*/
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import ru.utils.db.DBService;
 import ru.utils.db.DBType;
 
@@ -21,7 +26,8 @@ import java.util.UUID;
  */
 public class UserAuthorizationService implements UserAuthorizationServiceI {
 
-    private final Logger LOG = LogManager.getLogger();
+//    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOG = LoggerFactory.getLogger(UserAuthorizationService.class);
 
     DateFormat dateFormatTime = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
@@ -373,7 +379,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
             md.reset();
             md.update(data.getBytes(Charset.forName("UTF8")));
         } catch (NoSuchAlgorithmException e) {
-            LOG.error(e);
+            LOG.error("", e);
         }
         byte[] digest = md.digest();
         return new String(Hex.encodeHex(digest));
@@ -475,7 +481,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                         preparedStatement.close();
 
                     } catch (SQLException e) {
-                        LOG.error(e);
+                        LOG.error("", e);
                         error = Error.EXEC;
                         errorMessage.append(e);
                     }
@@ -524,7 +530,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                 if (!c) { disconnect(); }
             }
         } catch (SQLException e) {
-            LOG.error(e);
+            LOG.error("", e);
         }
         return r;
     }
@@ -578,7 +584,7 @@ public class UserAuthorizationService implements UserAuthorizationServiceI {
                     preparedStatement.close();
 
                 } catch (SQLException e) {
-                    LOG.error(e);
+                    LOG.error("", e);
                     error = Error.EXEC;
                     errorMessage.append(e);
                 }

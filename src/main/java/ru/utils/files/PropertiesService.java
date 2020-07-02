@@ -1,19 +1,30 @@
 package ru.utils.files;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+//import com.fasterxml.jackson.databind.AnnotationIntrospector;
+//import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+//import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import org.apache.logging.log4j.Level;
+/*
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+*/
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.*;
+//import java.lang.reflect.ParameterizedType;
+//import java.lang.reflect.Type;
 import java.math.BigInteger;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -27,7 +38,8 @@ import java.util.*;
  * Сервис для работы с файлом properties
  */
 public class PropertiesService {
-    private static final Logger LOG = LogManager.getLogger();
+//    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOG = LoggerFactory.getLogger(PropertiesService.class);
     private String fileName;                    // properties - файл
     private boolean addKey;                     // добавлять или нет новый параметр из файла
     private Map<String, String> propertyMap;    // список параметров со значениями
@@ -47,6 +59,7 @@ public class PropertiesService {
      * Инициализация с параметрами
      * из файла будут браться только переданные параметры
      * для получения параметров нужно выполнить readProperties
+     *
      * @param propertyMap
      */
     public PropertiesService(Map<String, String> propertyMap) {
@@ -58,6 +71,7 @@ public class PropertiesService {
      * Инициализация с именем файла
      * все параметры берутся из файла
      * получение параметров происходит при инициализации
+     *
      * @param fileName
      */
     public PropertiesService(String fileName) {
@@ -70,6 +84,7 @@ public class PropertiesService {
      * Инициализация с параметрами и именем файла
      * из файла будут браться только переданные параметры
      * получение параметров происходит при инициализации
+     *
      * @param fileName
      * @param propertyMap
      */
@@ -83,15 +98,17 @@ public class PropertiesService {
 
     /**
      * Устанавливается уровень логирования
+     *
      * @param level
      */
-    public void setLevel(Level level){
+    public void setLevel(Level level) {
         Configurator.setLevel(LOG.getName(), level);
     }
 
     /**
      * Получение параметров из файла
      * дополнительно устанавливается уровень логирования
+     *
      * @param fileName
      * @param level
      */
@@ -102,21 +119,22 @@ public class PropertiesService {
 
     /**
      * Получение параметров из файла
+     *
      * @param fileName
      */
     public void readProperties(String fileName) {
         this.fileName = fileName;
         StringBuilder report = new StringBuilder();
         report
-            .append("Параметры из файла ")
-            .append(fileName)
-            .append(":");
+                .append("Параметры из файла ")
+                .append(fileName)
+                .append(":");
 
         boolean fileExists = false;
         Properties properties = new Properties();
         File file = new File(fileName);
         if (file.exists()) { // существует файл по прямой ссылке
-            try(InputStream inputStream = new FileInputStream(file)){
+            try (InputStream inputStream = new FileInputStream(file)) {
                 properties.load(inputStream);
                 fileExists = true;
             } catch (Exception e) {
@@ -127,10 +145,10 @@ public class PropertiesService {
             }
         } else { // ищем файл в ресурсах
 
-            if (!fileName.startsWith("/")){
+            if (!fileName.startsWith("/")) {
                 fileName = "/" + fileName;
             }
-            try (InputStream inputStream = getClass().getResourceAsStream(fileName)){
+            try (InputStream inputStream = getClass().getResourceAsStream(fileName)) {
                 properties.load(inputStream);
                 fileExists = true;
             } catch (Exception e) {
@@ -141,7 +159,7 @@ public class PropertiesService {
             }
         }
 
-        if (fileExists ){
+        if (fileExists) {
             StringBuilder reportTrace = new StringBuilder();
             reportTrace
                     .append("Параметры в файле ")
@@ -161,13 +179,13 @@ public class PropertiesService {
                                 entry.getValue().toString());
                     }
                 }
-                LOG.trace(reportTrace);
+                LOG.trace("{}", reportTrace);
 //                for (Map.Entry<String, String> entry : propertyMap.entrySet()) {
 //                    propertyMap.put(entry.getKey(), pr.getProperty(entry.getKey(), entry.getValue()));
 //                }
                 fileExists = true;
             } catch (Exception e) {
-                LOG.error(e);
+                LOG.error("", e);
             }
         }
 
@@ -185,9 +203,9 @@ public class PropertiesService {
                 });
 
         if (fileExists) {
-            LOG.info(report);
+            LOG.info("{}", report);
         } else {
-            LOG.warn(report);
+            LOG.warn("{}", report);
         }
     }
 
@@ -195,6 +213,7 @@ public class PropertiesService {
     /**
      * Сохраняние параметра в файл
      * !!! Внимание форматирование и комментарии в файле пропадут
+     *
      * @param key
      * @param value
      * @return
@@ -207,7 +226,7 @@ public class PropertiesService {
             properties.load(inputStream);
             r = true;
         } catch (IOException e) {
-            LOG.error(e);
+            LOG.error("", e);
         }
 
         if (r) {
@@ -216,7 +235,7 @@ public class PropertiesService {
                 properties.store(outputStream, null);
             } catch (IOException e) {
                 r = false;
-                LOG.error(e);
+                LOG.error("", e);
             }
         }
         return r;
@@ -224,6 +243,7 @@ public class PropertiesService {
 
     /**
      * Наменование текущего файла с параметрами
+     *
      * @return
      */
     public String getFileName() {
@@ -232,15 +252,17 @@ public class PropertiesService {
 
     /**
      * Проверка наличия параметра
+     *
      * @param key
      * @return
      */
-    public boolean containsKey(String key){
+    public boolean containsKey(String key) {
         return propertyMap.containsKey(key);
     }
 
     /**
      * Значение паметра в формате String
+     *
      * @param key
      * @return
      */
@@ -254,7 +276,30 @@ public class PropertiesService {
     }
 
     /**
+     * Значение паметра в формате String в заданной кодировке
+     *
+     * @param key
+     * @param encoding
+     * @return
+     */
+    public String get(String key, boolean encoding) {
+        if (encoding) {
+            try {
+                return new String(get(key)
+                        .getBytes("ISO8859-1"),
+                        "cp1251");
+            } catch (UnsupportedEncodingException e) {
+                LOG.error("", e);
+                return null;
+            }
+        } else {
+            return get(key);
+        }
+    }
+
+    /**
      * Значение параметра в формате String
+     *
      * @param key
      * @return
      */
@@ -269,6 +314,7 @@ public class PropertiesService {
 
     /**
      * Значение зашифрованного параметра
+     *
      * @param key
      * @return
      */
@@ -283,6 +329,7 @@ public class PropertiesService {
 
     /**
      * Значение параметра в формате int
+     *
      * @param key
      * @return
      */
@@ -299,6 +346,7 @@ public class PropertiesService {
 
     /**
      * Значение параметра в формате long
+     *
      * @param key
      * @return
      */
@@ -315,6 +363,7 @@ public class PropertiesService {
 
     /**
      * Значение параметра в формате double
+     *
      * @param key
      * @return
      */
@@ -331,6 +380,7 @@ public class PropertiesService {
 
     /**
      * Значение параметра в формате float
+     *
      * @param key
      * @return
      */
@@ -347,6 +397,7 @@ public class PropertiesService {
 
     /**
      * Значение параметра в формате boolean
+     *
      * @param key
      * @return
      */
@@ -362,6 +413,7 @@ public class PropertiesService {
     /**
      * Значение параметра в формате Date
      * формат dd/MM/yyy
+     *
      * @param key
      * @return
      */
@@ -372,6 +424,7 @@ public class PropertiesService {
     /**
      * Значение параметра в формате Date
      * формат задается параметром dateFormat
+     *
      * @param key
      * @param dateFormat
      * @return
@@ -391,6 +444,7 @@ public class PropertiesService {
 
     /**
      * Значение параметра в формате Level
+     *
      * @param key
      * @return
      */
@@ -405,6 +459,7 @@ public class PropertiesService {
 
     /**
      * Значение параметра в формате String[]
+     *
      * @param key
      * @return
      */
@@ -414,6 +469,7 @@ public class PropertiesService {
 
     /**
      * Значение параметра в формате int[]
+     *
      * @param key
      * @return
      */
@@ -432,6 +488,7 @@ public class PropertiesService {
     /**
      * Значение параметра в формате byte[]
      * radix = 16
+     *
      * @param key
      * @return
      */
@@ -442,6 +499,7 @@ public class PropertiesService {
     /**
      * Значение параметра в формате byte[]
      * radix задается параметром
+     *
      * @param key
      * @param radix
      * @return
@@ -457,6 +515,7 @@ public class PropertiesService {
 
     /**
      * Значение параметра в формате JSONObject
+     *
      * @param key
      * @return
      */
@@ -467,7 +526,7 @@ public class PropertiesService {
             try {
                 jsonObject = new JSONObject(value);
             } catch (JSONException e) {
-                LOG.error(e);
+                LOG.error("", e);
             }
         }
         return jsonObject;
@@ -475,6 +534,7 @@ public class PropertiesService {
 
     /**
      * Значение параметра в формате JSONArray
+     *
      * @param key
      * @return
      */
@@ -485,7 +545,7 @@ public class PropertiesService {
             try {
                 jsonArray = new JSONArray(value);
             } catch (JSONException e) {
-                LOG.error(e);
+                LOG.error("", e);
             }
         }
         return jsonArray;
@@ -493,15 +553,17 @@ public class PropertiesService {
 
     /**
      * Значение параметра в формате List<T>
+     *
      * @param key
-     * @param typeToken
+     * @param typeToken TypeToken<List<T>>(){}
      * @param <T>
      * @return
      */
     public <T> List<T> getJsonList(String key, TypeToken typeToken) {
         Gson gson = new GsonBuilder().create();
-        return gson.fromJson(get(key), typeToken.getType());
+        return gson.fromJson(get(key, true), typeToken.getType());
     }
+
 /*
     public List<?> getJsonList(String key) {
         Gson gson = new GsonBuilder().create();
@@ -509,6 +571,56 @@ public class PropertiesService {
         return gson.fromJson(jsonString, new TypeToken<List<?>>(){}.getType());
     }
 */
+
+
+    /**
+     * Значение параметра в формате List<T>
+     * @param key
+     * @param classs
+     * @param <T>
+     * @return
+     */
+    public <T> List<T> getJsonList(String key, Class classs) {
+        List<T> list = null;
+/*
+        AnnotationIntrospector introspector = new JacksonAnnotationIntrospector();
+        mapper.getDeserializationConfig().with(introspector);
+        mapper.getSerializationConfig().with(introspector);
+        T targetClass = null;
+        JavaType type = mapper.getTypeFactory().constructCollectionType(
+                        List.class,
+                        targetClass.getClass());
+*/
+
+
+/*
+        Foo actualClass = new Foo<?>().inferedClass;
+        ParameterizedType type = (ParameterizedType)actualClass.getGenericSuperclass();
+        System.out.println(type);
+        Class parameter = (Class)type.getActualTypeArguments()[0];
+        System.out.println(parameter);
+*/
+
+/*
+        Foo<T> foo = new Foo<T>() {
+            @Override
+            public Class<?> getGenericClass() {
+                return super.getGenericClass();
+            }
+        };
+        System.out.println("foo.getClass(): " + foo.getClass().getGenericSuperclass().getClass());
+*/
+
+        JavaType javaType = mapper.getTypeFactory().constructParametricType(
+                List.class,
+                classs);
+        try {
+            list = mapper.readValue(get(key, true), javaType);
+        } catch (Exception e) {
+            LOG.error("Ошибка при чтении параметра {} из файла {}", key, fileName);
+        }
+        return list;
+    }
 
     /**
      * Значение параметра в формате List<T>
@@ -520,7 +632,7 @@ public class PropertiesService {
     public <T> List<T> getJsonList(String key, TypeReference typeReference) {
         List<T> list = null;
         try {
-            list = mapper.readValue(get(key), typeReference);
+            list = mapper.readValue(get(key, true), typeReference);
         } catch (Exception e) {
             LOG.error("Ошибка при чтении параметра {} из файла {}", key, fileName);
         }
@@ -537,24 +649,59 @@ public class PropertiesService {
     public <T> T[] getJsonArray(String key, TypeReference typeReference) {
         T[] array = null;
         try {
-            array = mapper.readValue(get(key), typeReference);
+            array = mapper.readValue(get(key, true), typeReference);
         } catch (Exception e) {
             LOG.error("Ошибка при чтении параметра {} из файла {}", key, fileName);
         }
         return array;
     }
 
+
+    /**
+     * Значение параметра в формате List<T>
+     * @param key
+     * @param <T>
+     * @return
+     */
+    public <T> List<T> getJsonList(String key) {
+        List<T> list = null;
+        try {
+            list = mapper.readValue(get(key, true), new TypeReference<List<T>>() {});
+        } catch (Exception e) {
+            LOG.error("Ошибка при чтении параметра {} из файла {}", key, fileName);
+        }
+//            testPlansList = mapper.readValue(new File(FILE_TEST_PLAN), new TypeReference<List<TestPlans>>() {});
+//            testPlansArray = mapper.readValue(new File(FILE_TEST_PLAN), TestPlans[].class);
+        return list;
+    }
+
+    public <T> T[] getJsonArray(String key) {
+        T[] array = null;
+        try {
+            array = mapper.readValue(get(key, true), new TypeReference<T[]>() {});
+        } catch (Exception e) {
+            LOG.error("Ошибка при чтении параметра {} из файла {}", key, fileName);
+        }
+//            testPlansList = mapper.readValue(new File(FILE_TEST_PLAN), new TypeReference<List<TestPlans>>() {});
+//            testPlansArray = mapper.readValue(new File(FILE_TEST_PLAN), TestPlans[].class);
+        return array;
+    }
+
+
+
     /**
      * Шифрование строки
+
      * @param data
      * @return
      */
-    private String getStringEncrypt(String data) {
+    public String getStringEncrypt(String data) {
         return Base64.getEncoder().encodeToString(data.getBytes());
     }
 
     /**
      * Дешифрование строки
+     *
      * @param data
      * @return
      */
@@ -566,4 +713,24 @@ public class PropertiesService {
         }
     }
 
+/*
+    public abstract class Foo<T> {
+
+        private Class<?> inferedClass;
+
+        public Class<?> getGenericClass(){
+            if(inferedClass == null){
+                Type mySuperclass = getClass().getGenericSuperclass();
+                Type tType = ((ParameterizedType)mySuperclass).getActualTypeArguments()[0];
+                String className = tType.toString().split(" ")[1];
+                try {
+                    inferedClass = Class.forName(className);
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
+            return inferedClass;
+        }
+    }
+*/
 }

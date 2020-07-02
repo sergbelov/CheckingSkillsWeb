@@ -1,19 +1,31 @@
 package ru.utils.db;
 
-import com.mchange.v2.c3p0.ComboPooledDataSource;
-import org.apache.logging.log4j.Level;
+//import com.mchange.v2.c3p0.ComboPooledDataSource;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+/*
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+*/
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.beans.PropertyVetoException;
+//import java.beans.PropertyVetoException;
+//import java.util.Properties;
 import java.sql.*;
-import java.util.Properties;
 
+/**
+ * Класс для работы с базой данных
+ */
 public class DBService {
-    private static final Logger LOG = LogManager.getLogger();
+//    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOG = LoggerFactory.getLogger(DBService.class);
 
-    private ComboPooledDataSource comboPooledDataSource = null; //new ComboPooledDataSource();
+//    private ComboPooledDataSource pooledDataSource = null; //new ComboPooledDataSource();
+    private HikariDataSource pooledDataSource = null;
     private Connection connection = null;
     private Statement statement = null;
 
@@ -293,20 +305,23 @@ public class DBService {
      * Закрытие Connection из пула
      * @param connection
      */
+/*
     public void closeConnectionFromPool(Connection connection) {
         if (connection != null) {
             try {
                 connection.close();
-                if (comboPooledDataSource != null) {
-                    LOG.debug("Закрытие Connection из пула: idleConnections = {}; busyConnections = {}",
-                            comboPooledDataSource.getNumIdleConnections(),
-                            comboPooledDataSource.getNumBusyConnections());
+                if (pooledDataSource != null) {
+//                    LOG.debug("Закрытие Connection из пула: idleConnections = {}; busyConnections = {}",
+//                            pooledDataSource.getNumIdleConnections(),
+//                            pooledDataSource.getNumBusyConnections());
+                    LOG.debug("Закрытие Connection из пула...");
                 }
             } catch (SQLException e) {
                 LOG.error("Ошибка при закрытии Connection из пула\n", e);
             }
         }
     }
+*/
 
 
     /**
@@ -465,6 +480,7 @@ public class DBService {
      * @param loggerLevel
      */
     public void setLoggerLevel(Level loggerLevel) {
+//        Configurator.setRootLevel(loggerLevel);
         Configurator.setLevel(LOG.getName(), loggerLevel);
     }
 
@@ -474,7 +490,7 @@ public class DBService {
      * @return true or false
      */
     public boolean isConnection() {
-        return (connection == null && comboPooledDataSource == null) ? false : true;
+        return (connection == null && pooledDataSource == null) ? false : true;
     }
 
     /**
@@ -492,13 +508,16 @@ public class DBService {
      * @return
      */
     public Connection getConnection() {
-        if (comboPooledDataSource != null) {
+        if (pooledDataSource != null) {
             Connection connection = null;
             try {
-                connection = comboPooledDataSource.getConnection();
+                connection = pooledDataSource.getConnection();
+/*
                 LOG.debug("Создание Connection и пула: idleConnections = {}; busyConnections = {}",
-                        comboPooledDataSource.getNumIdleConnections(),
-                        comboPooledDataSource.getNumBusyConnections());
+                        pooledDataSource.getNumIdleConnections(),
+                        pooledDataSource.getNumBusyConnections());
+*/
+                LOG.debug("Создание Connection и пула...");
             } catch (Exception e) {
                 LOG.error("Ошибка при создании Connection из пула\n", e);
             }
@@ -581,61 +600,89 @@ public class DBService {
     public boolean connectPooled() {
         return connectPooled(
                 50,
-                55,
-                3,
-                15,
-                3,
-                0);
+                100,
+                150,
+                0
+                );
     }
 
     /**
      * Инициализация пула подключений к БД
      *
-     * @param maxStatements
-     * @param maxStatementsPerConnection
      * @param minPoolSize
      * @param maxPoolSize
-     * @param acquireIncrement
+     * @param maxStatements
+//     * @param maxStatementsPerConnection
      * @param maxIdleTime
+//     * @param acquireIncrement
      */
     public boolean connectPooled(
-            int maxStatements,
-            int maxStatementsPerConnection,
             int minPoolSize,
             int maxPoolSize,
-            int acquireIncrement,
+            int maxStatements,
+//            int maxStatementsPerConnection,
             int maxIdleTime
+//            int acquireIncrement
     ) {
         try {
-            if (comboPooledDataSource == null) {
-                LOG.info("Инициализация пула подключений {}...", dbUrl);
-                comboPooledDataSource = new ComboPooledDataSource();
-                comboPooledDataSource.setDriverClass(dbType.getDriver());
-                comboPooledDataSource.setJdbcUrl(dbUrl);
-                comboPooledDataSource.setUser(dbUserName);
-                comboPooledDataSource.setPassword(dbPassword);
+            if (pooledDataSource == null) {
+                LOG.info("Инициализация пула подключений к БД {}...", dbUrl);
+
+                // HikariDataSource
+                HikariConfig config = new HikariConfig();
+
+                config.setJdbcUrl(dbUrl);
+                config.setUsername(dbUserName);
+                config.setPassword(dbPassword);
+
+//                config.setConnectionTimeout(30000); // максимальное количество миллисекунд, в течение которых клиент будет ожидать подключения из пула
+//                config.setInitializationFailTimeout(); // время ожидания сбоя при инициализации пула
+                config.setIdleTimeout(maxIdleTime); //максимальное количество времени (в миллисекундах), в течение которого соединению разрешено бездействовать в пуле
+                config.setMinimumIdle(minPoolSize);
+                config.setMaximumPoolSize(maxPoolSize);
+                config.setAutoCommit(false);
+                config.addDataSourceProperty("cachePrepStmts", "true"); // Кэшировать или нет
+                config.addDataSourceProperty("prepStmtCacheSize", String.valueOf(maxStatements)); // Количество Prepared Statements кэшируемых соединений
+                config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048"); // Максимальная длина SQL Statement
+
+                pooledDataSource = new HikariDataSource(config);
+
+                LOG.debug("InitializationFailTimeout: {}, ConnectionTimeout: {}, IdleTimeout: {}",
+                        pooledDataSource.getInitializationFailTimeout(),
+                        pooledDataSource.getConnectionTimeout(),
+                        pooledDataSource.getIdleTimeout());
+
+/*
+                // ComboPooledDataSource
+                pooledDataSource = new ComboPooledDataSource();
+                pooledDataSource.setDriverClass(dbType.getDriver());
+                pooledDataSource.setJdbcUrl(dbUrl);
+                pooledDataSource.setUser(dbUserName);
+                pooledDataSource.setPassword(dbPassword);
 
                 Properties properties = new Properties();
                 properties.setProperty("user", dbUserName);
                 properties.setProperty("password", dbPassword);
                 properties.setProperty("useUnicode", "true");
                 properties.setProperty("characterEncoding", "UTF8");
-                comboPooledDataSource.setProperties(properties);
+                pooledDataSource.setProperties(properties);
 
                 // set options
-                comboPooledDataSource.setMaxStatements(maxStatements);
-                comboPooledDataSource.setMaxStatementsPerConnection(maxStatementsPerConnection);
-                comboPooledDataSource.setMinPoolSize(minPoolSize);
-                comboPooledDataSource.setMaxPoolSize(maxPoolSize);
-                comboPooledDataSource.setAcquireIncrement(acquireIncrement);
-                comboPooledDataSource.setMaxIdleTime(maxIdleTime);
-                LOG.debug("Пул подключений {} инициализирован", dbUrl);
+                pooledDataSource.setMinPoolSize(3);
+                pooledDataSource.setMaxPoolSize(maxPoolSize);
+                pooledDataSource.setMaxStatements(maxStatements);
+                pooledDataSource.setMaxStatementsPerConnection(150);
+                pooledDataSource.setAcquireIncrement(3);
+                pooledDataSource.setMaxIdleTime(maxIdleTime);
+*/
+
+                LOG.info("Пул подключений к БД {} инициализирован", dbUrl);
             } else {
-                LOG.warn("Пул подключений {} уже инициализирован", dbUrl);
+                LOG.warn("Пул подключений к БД {} инициализирован ранее", dbUrl);
             }
             return true;
-        } catch (PropertyVetoException e) {
-            LOG.error("Ошибка при инициализации пула подключений {}\n", dbUrl, e);
+        } catch (Exception e) {
+            LOG.error("Ошибка при инициализации пула подключений к БД {}\n", dbUrl, e);
             return false;
         }
     }
@@ -779,9 +826,9 @@ ResultSet.CONCUR_UPDATABLE
                 LOG.error("SQL Disconnect\n", e);
             }
         }
-        if (comboPooledDataSource != null){
-            comboPooledDataSource.close();
-            comboPooledDataSource = null;
+        if (pooledDataSource != null){
+            pooledDataSource.close();
+            pooledDataSource = null;
         }
     }
 

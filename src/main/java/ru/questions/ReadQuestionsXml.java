@@ -2,11 +2,14 @@ package ru.questions;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
+//import org.apache.logging.log4j.LogManager;
+//import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.*;
 import org.xml.sax.SAXException;
 
@@ -23,7 +26,7 @@ import java.util.List;
  */
 public class ReadQuestionsXml implements ReadQuestions{
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOG = LoggerFactory.getLogger(ReadQuestionsXml.class);
 
     private String author;                                              // автор
     private String theme;                                               // тема
@@ -115,7 +118,7 @@ public class ReadQuestionsXml implements ReadQuestions{
                 }
 
             } catch (ParserConfigurationException | SAXException | IOException e) {
-                LOG.error(e);
+                LOG.error("", e);
             }
 
             // место нахождение файла с вопросами
@@ -141,7 +144,7 @@ public class ReadQuestionsXml implements ReadQuestions{
                 fw.write(json);
                 fw.flush();
             } catch (IOException e) {
-                LOG.error(e);
+                LOG.error("", e);
             }
         }
 

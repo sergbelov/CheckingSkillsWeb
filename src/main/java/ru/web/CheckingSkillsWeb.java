@@ -11,8 +11,12 @@ import javax.servlet.http.HttpServletResponse;
 
 import javafx.application.Application;
 import okhttp3.*;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.LogManager;
+
+//import org.apache.logging.log4j.Logger;
+//import org.apache.logging.log4j.LogManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.maven.model.Model;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
@@ -33,6 +37,9 @@ import ru.utils.files.PropertiesService;
 //@SessionAttributes(value = "login")
 //@SessionAttributes(types = CheckingSkillsWeb.class)
 public class CheckingSkillsWeb {
+    //    private static final Logger LOG = LogManager.getLogger(CheckingSkillsWeb.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CheckingSkillsWeb.class);
+    private static final MediaType JSON = MediaType.parse("application/json; charset=UTF-8");
 
 //    private final String VERSION = "2019.10.05";
     private String VERSION = "none";
@@ -85,9 +92,6 @@ public class CheckingSkillsWeb {
         @Value("${USER_REGISTRATION:true}")
         private boolean USER_REGISTRATION;
     */
-    //    private static final Logger LOG = LogManager.getLogger(CheckingSkillsWeb.class);
-    private static final Logger LOG = LogManager.getLogger();
-    private static final MediaType JSON = MediaType.parse("application/json; charset=UTF-8");
 
 //    private WebUser webUser = new WebUser();
 //    private WebParamsObject webParams = new WebParamsObject();

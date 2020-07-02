@@ -4,10 +4,12 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
+//import org.apache.logging.log4j.LogManager;
+//import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -19,7 +21,7 @@ import java.util.List;
  */
 public class ReadQuestionsJson implements ReadQuestions {
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOG = LoggerFactory.getLogger(ReadQuestionsJson.class);
 
     private List<QuestionJson> questionsJsonList = new ArrayList<>(); // полный список вопросов (все темы)
 
@@ -67,11 +69,11 @@ public class ReadQuestionsJson implements ReadQuestions {
                 }.getType());
 
             } catch (FileNotFoundException e) {
-                LOG.error(e);
+                LOG.error("", e);
             } catch (UnsupportedEncodingException e) {
-                LOG.error(e);
+                LOG.error("", e);
             } catch (IOException e) {
-                LOG.error(e);
+                LOG.error("", e);
             }
         }
         return questionsJsonList;

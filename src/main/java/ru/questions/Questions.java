@@ -1,9 +1,12 @@
 package ru.questions;
 
+//import org.apache.logging.log4j.LogManager;
+//import org.apache.logging.log4j.Logger;
+
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.text.DateFormat;
@@ -18,7 +21,7 @@ import java.util.stream.IntStream;
  */
 public class Questions {
 
-    private static final Logger LOG = LogManager.getLogger();
+    private static final Logger LOG = LoggerFactory.getLogger(Question.class);
 
     // CheckingSkills.properties
     private int     QUESTION_MAX = 10;                          // максимальное количество задаваемых вопросов
@@ -290,7 +293,7 @@ public class Questions {
                         bw.write(sbQuestions.toString());
                         bw.flush();
                     } catch (IOException e) {
-                        LOG.error(e);
+                        LOG.error("", e);
                     }
 
                 });
